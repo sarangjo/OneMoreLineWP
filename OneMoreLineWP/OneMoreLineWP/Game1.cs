@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input.Touch;
+using System;
 using System.Collections.Generic;
 
 namespace OneMoreLineWP
@@ -51,10 +52,10 @@ namespace OneMoreLineWP
             LEFT_BOUNDARY = VIEWPORT_WIDTH / 6;
             RIGHT_BOUNDARY = VIEWPORT_WIDTH * 5 / 6;
             // Objects
-            player = new Player(new Vector2(VIEWPORT_WIDTH/2, 50));
+            player = new Player(new Vector2(VIEWPORT_WIDTH/2 + 200, 50));
             nodes = new List<Node>();
             nodes.Add(new Node(new Vector2(30, 360)));
-            nodes.Add(new Node(new Vector2(160, 560)));
+            nodes.Add(new Node(new Vector2(460, 760)));
             viewFrameY = VIEWPORT_HEIGHT;
             base.Initialize();
         }
@@ -95,7 +96,7 @@ namespace OneMoreLineWP
             if (state == GameState.PLAYING)
             {
                 // Update ViewFrameY
-                viewFrameY += player.Velocity.Y;
+                //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
 
                 // Object updates
                 player.Update(viewFrameY);
@@ -104,9 +105,23 @@ namespace OneMoreLineWP
 
                 // User input
                 ProcessInput();
+                
+                if (regionOfHooking != Rectangle.Empty)
+                {
+                    if (IsAtPointOfHooking())
+                    {
+                        ScreenHeld1();
+                    }
+                }
+                
+                if (player.isCircling)
+                {
+                    ScreenHeld2();
+                }
 
                 // Check collisions
                 // 1 - nodes
+                /*
                 foreach (Node n in nodes)
                     if (player.isCollided(n))
                     {
@@ -114,28 +129,151 @@ namespace OneMoreLineWP
                     }
                 // 2 - boundaries
                 if (isCollidedWithBoundaries())
-                    player.isAlive = false;
+                    player.isAlive = false;*/
             }
 
             base.Update(gameTime);
         }
 
+        int buffer = 5;
+
+        private bool IsAtPointOfHooking()
+        {
+            Rectangle recOfHooking = new Rectangle((int)regionOfHooking.X - buffer, (int)regionOfHooking.Y - buffer, buffer * 2, buffer * 2);
+            return recOfHooking.Contains(player.Center);
+        }
+
+        Node nearestNode = null;
+        bool isClockwise = false;
+        
         private void ProcessInput()
         {
             // Process touch events
             TouchCollection touchCollection = TouchPanel.GetState();
-            TouchLocation tl = touchCollection[0];
-            if (tl.State == TouchLocationState.Pressed)
+            if (touchCollection.Count > 0)
             {
-                // Screen touched
-                // 1) Find nearest node
-                Node nearestNode = GetNearestNode();
-                // 2) Calculate radius, start calculating initial velocity
-                // 3) Continuously calculate velocity
+                TouchLocation tl = touchCollection[0];
+                if (tl.State == TouchLocationState.Pressed)
+                {
+                }
+                else if (tl.State == TouchLocationState.Released)
+                {
+                    ScreenPressed();
+                }
             }
-            else if (tl.State == TouchLocationState.Released)
+        }
+
+        Rectangle regionOfHooking = Rectangle.Empty;
+        private bool prehooked;
+
+        private void ScreenPressed()
+        {
+            Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
+            regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
+            prehooked = true;
+        }
+
+        private void ScreenHeld1()
+        {
+            regionOfHooking = Rectangle.Empty;
+
+            // 1) Find nearest node
+            nearestNode = nodes[1];// GetNearestNode();
+
+            // Set clockwise
+            isClockwise = player.Center.X < nearestNode.Center.X;
+
+            player.isCircling = true;
+        }
+
+        private void ScreenHeld2()
+        {
+            // 2) Calculate radius, start calculating initial velocity
+            // 3) Continuously calculate velocity
+            SetPlayerVelocity(nearestNode, isClockwise);
+        }
+
+        private void ScreenReleased()
+        {
+            player.isCircling = false;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="n">the center of the node</param>
+        /// <returns></returns>
+        private Vector2 CalculatePointOfHooking(Vector2 n)
+        {
+            Vector2 p = player.Center;
+            float x = 0, y = 0;
+            if (player.velocity.X != 0 && player.velocity.Y != 0)
             {
+                // General Case
+                float m = player.velocity.Y / player.velocity.X;
+                x = (n.X / m + m * p.X + n.Y - p.Y) / (m + 1 / m);
+                y = m * (x - p.X) + p.Y;
             }
+            else
+            {
+                // Special Cases
+                if (player.velocity.Y == 0)
+                { x = n.X; y = p.Y; }
+                else { x = p.X; y = n.Y; }
+            }
+            return new Vector2(x, y);
+        }
+
+        private void SetPlayerVelocity(Node n, bool isClockwise)
+        {
+            float distance = n.DistanceFromPlayer(player);
+            Vector2 d = player.Center - n.Center;
+            Vector2 newVelocity = new Vector2(Math.Abs(d.Y / distance), Math.Abs(d.X / distance));
+            if (isClockwise)
+            {
+                #region Clockwise
+                if (d.X > 0)
+                {
+                    if (d.Y > 0)
+                        // player in I
+                        newVelocity.Y *= -1;
+                    else
+                    {    // player in IV
+                        newVelocity.X *= -1;
+                        newVelocity.Y *= -1;
+                    }
+                }
+                else if(d.Y < 0)
+                {
+                    // player in III
+                    newVelocity.X *= -1;
+                }
+                #endregion
+            }
+            else
+            {
+                #region Counter Clockwise
+                if (d.X > 0)
+                {
+                    if (d.Y > 0)
+                        // player in I
+                        newVelocity.X *= -1;
+                    // player in IV, do nothing
+                }
+                else if (d.Y > 0)
+                {
+                    // player in II
+                    newVelocity.X *= -1;
+                    newVelocity.Y *= -1;
+                }
+                else
+                {
+                    // player in III
+                    newVelocity.Y *= -1;
+                }
+                #endregion
+            }
+            player.velocity = newVelocity;
         }
 
         /// <summary>
@@ -169,7 +307,7 @@ namespace OneMoreLineWP
         /// <returns></returns>
         private bool isCollidedWithBoundaries()
         {
-            return player.GlobalPosition.X < LEFT_BOUNDARY || player.SpriteRectangle.Right > RIGHT_BOUNDARY;
+            return player.GlobalPosition.X < LEFT_BOUNDARY || player.GlobalRectangle.Right > RIGHT_BOUNDARY;
         }
 
         /// <summary>
@@ -191,6 +329,18 @@ namespace OneMoreLineWP
 
                 Primitives2D.DrawLine(spriteBatch, new Vector2(LEFT_BOUNDARY, 0), new Vector2(LEFT_BOUNDARY, VIEWPORT_HEIGHT), Color.White, 5f);
                 Primitives2D.DrawLine(spriteBatch, new Vector2(RIGHT_BOUNDARY, 0), new Vector2(RIGHT_BOUNDARY, VIEWPORT_HEIGHT), Color.White, 5f);
+
+                if (player.isCircling)
+                {
+                    Primitives2D.DrawCircle(spriteBatch, nearestNode.Position.X + nearestNode.Texture.Width/2,
+                        nearestNode.Position.Y + nearestNode.Texture.Height/2,
+                        nearestNode.DistanceFromPlayer(player), 360, Color.White);
+                }
+
+                if(prehooked)
+                {
+                    Primitives2D.DrawRectangle(spriteBatch, regionOfHooking, Color.White);
+                }
             }
             DrawText();
 
@@ -201,8 +351,8 @@ namespace OneMoreLineWP
 
         private void DrawText()
         {
-            string str = "View Frame Y: " + viewFrameY;
-            str += "\n" + coll;
+            string str = "Player: " + player.ToString();
+            str += "\nPOH: " + regionOfHooking;
 
             spriteBatch.DrawString(font, str, Vector2.Zero, Color.White);
         }

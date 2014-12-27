@@ -43,7 +43,7 @@ namespace OneMoreLineWP
         /// <summary>
         /// Gets the global rectangle for this Sprite.
         /// </summary>
-        public Rectangle SpriteRectangle
+        public Rectangle GlobalRectangle
         {
             get
             {
@@ -62,7 +62,7 @@ namespace OneMoreLineWP
         {
             get
             {
-                return new Vector2(SpriteRectangle.Center.X, SpriteRectangle.Center.Y);
+                return new Vector2(GlobalRectangle.Center.X, GlobalRectangle.Center.Y);
             }
         }
     }

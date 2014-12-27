@@ -10,27 +10,29 @@ namespace OneMoreLineWP
 {
     public class Player : Sprite
     {
-        public static readonly Vector2 BASE_VELOCITY = new Vector2(0, 1f);
+        public static readonly Vector2 BASE_VELOCITY = new Vector2(-.5f, 0.866f);
         public static readonly Vector2 BASE_POSITION = new Vector2(0, 10f);
+        public static readonly float BASE_SPEED = 4f;
 
-        public Vector2 Velocity;
-        public bool IsCircling;
+        public Vector2 velocity;
+        public bool isCircling;
         public bool isAlive;
         public int CircleRadius;
 
         public Player(Vector2 newGPosition)
             : base("Graphics\\player", newGPosition)
         {
-            Velocity = BASE_VELOCITY;
+            velocity = BASE_VELOCITY;
+            velocity.Normalize();
             isAlive = true;
-            IsCircling = false;
+            isCircling = false;
         }
 
         public void Update(float viewFrameY)
         {
             // Apply Velocity
-            GlobalPosition.X += Velocity.X;
-            GlobalPosition.Y += Velocity.Y;
+            GlobalPosition.X += velocity.X * BASE_SPEED;
+            GlobalPosition.Y += velocity.Y * BASE_SPEED;
 
             Position.X = GlobalPosition.X;
             // Update for view frame
@@ -45,7 +47,15 @@ namespace OneMoreLineWP
         public bool isCollided(Node n)
         {
             // Currently, Player is a square
-            return (SpriteRectangle.Intersects(n.SpriteRectangle));
+            return (GlobalRectangle.Intersects(n.GlobalRectangle));
+        }
+
+        public override string ToString()
+        {
+            string s = "Position: " + Position;
+            s += "\nGlobal Position: " + GlobalPosition;
+            s += "\nVelocity: " + velocity;
+            return s;
         }
     }
 }
