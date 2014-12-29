@@ -27,6 +27,7 @@ namespace OneMoreLineWP
 
         Player player;
         List<Node> nodes;
+
         SpriteFont font;
 
         float viewFrameY;
@@ -35,8 +36,7 @@ namespace OneMoreLineWP
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";
-           
+            Content.RootDirectory = "Content";    
         }
 
         /// <summary>
@@ -52,11 +52,15 @@ namespace OneMoreLineWP
             LEFT_BOUNDARY = VIEWPORT_WIDTH / 6;
             RIGHT_BOUNDARY = VIEWPORT_WIDTH * 5 / 6;
             // Objects
-            player = new Player(new Vector2(VIEWPORT_WIDTH/2 + 200, 50));
+            player = new Player(new Vector2(VIEWPORT_WIDTH/2, 0f));
             nodes = new List<Node>();
             nodes.Add(new Node(new Vector2(30, 360)));
-            nodes.Add(new Node(new Vector2(460, 760)));
+            nodes.Add(new Node(new Vector2(560, 860)));
             viewFrameY = VIEWPORT_HEIGHT;
+
+            nearestNode = GetNearestNode();
+            player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
+
             base.Initialize();
         }
 
@@ -85,6 +89,8 @@ namespace OneMoreLineWP
             // TODO: Unload any non ContentManager content here
         }
 
+        bool isStarted = false;
+
         /// <summary>
         /// Allows the game to run logic such as updating the world,
         /// checking for collisions, gathering input, and playing audio.
@@ -99,25 +105,40 @@ namespace OneMoreLineWP
                 //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
 
                 // Object updates
-                player.Update(viewFrameY);
+                player.Update(viewFrameY, gameTime.TotalGameTime);
                 foreach (Node n in nodes)
                     n.Update(viewFrameY);
 
                 // User input
-                ProcessInput();
-                
-                if (regionOfHooking != Rectangle.Empty)
+                ProcessInput(gameTime.TotalGameTime);
+
+                if (player.hookState == Player.HookState.LINKED)
                 {
                     if (IsAtPointOfHooking())
-                    {
-                        ScreenHeld1();
-                    }
+                        Hook(gameTime.TotalGameTime);
                 }
-                
-                if (player.isCircling)
+
+                /*if (!isStarted)
                 {
-                    ScreenHeld2();
+                    isStarted = true;
+                    Start(gameTime.ElapsedGameTime);
                 }
+
+                if (isStarted)
+                {
+                    Rotate(gameTime.TotalGameTime);
+                }*/
+
+                /*switch (player.hookState)
+                {
+                    case Player.HookState.LINKED:
+                        if (IsAtPointOfHooking())
+                            Hook();
+                        break;
+                    case Player.HookState.HOOKED:
+                        Rotate(gameTime.ElapsedGameTime);
+                        break;
+                }*/
 
                 // Check collisions
                 // 1 - nodes
@@ -135,67 +156,148 @@ namespace OneMoreLineWP
             base.Update(gameTime);
         }
 
-        int buffer = 5;
-
-        private bool IsAtPointOfHooking()
-        {
-            Rectangle recOfHooking = new Rectangle((int)regionOfHooking.X - buffer, (int)regionOfHooking.Y - buffer, buffer * 2, buffer * 2);
-            return recOfHooking.Contains(player.Center);
-        }
-
-        Node nearestNode = null;
-        bool isClockwise = false;
-        
-        private void ProcessInput()
+        /// <summary>
+        /// Processes touch input.
+        /// </summary>
+        private void ProcessInput(TimeSpan elapsed)
         {
             // Process touch events
             TouchCollection touchCollection = TouchPanel.GetState();
             if (touchCollection.Count > 0)
             {
                 TouchLocation tl = touchCollection[0];
-                if (tl.State == TouchLocationState.Pressed)
+                if (tl.State == TouchLocationState.Released)
                 {
-                }
-                else if (tl.State == TouchLocationState.Released)
-                {
-                    ScreenPressed();
+                    switch (player.hookState)
+                    {
+                        case Player.HookState.NOT_LINKED:
+                            Link();
+                            break;
+                        case Player.HookState.HOOKED:
+                            UnLink(elapsed);
+                            break;
+                    }
                 }
             }
         }
-
-        Rectangle regionOfHooking = Rectangle.Empty;
-        private bool prehooked;
-
-        private void ScreenPressed()
+        
+        public static int BUFFER = 10;
+        
+        /// <summary>
+        /// Checks if the player is at the point of hooking.
+        /// </summary>
+        /// <returns></returns>
+        private bool IsAtPointOfHooking()
         {
-            Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
-            regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
-            prehooked = true;
+            //Rectangle recOfHooking = new Rectangle((int)regionOfHooking.X - buffer, (int)regionOfHooking.Y - buffer, buffer * 2, buffer * 2);
+            //return recOfHooking.Contains(player.Center);
+            float dot = Vector2.Dot(player.LinearUnitVelocity, player.GlobalCenter - nearestNode.GlobalCenter);
+            return Math.Abs(dot) < BUFFER;
         }
 
-        private void ScreenHeld1()
+        /// <summary>
+        /// Links the player to the nearest node.
+        /// </summary>
+        private void Link()
         {
-            regionOfHooking = Rectangle.Empty;
+            //Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
+            //regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
 
             // 1) Find nearest node
-            nearestNode = nodes[1];// GetNearestNode();
+            nearestNode = GetNearestNode();
 
-            // Set clockwise
-            isClockwise = player.Center.X < nearestNode.Center.X;
-
-            player.isCircling = true;
+            player.hookState = Player.HookState.LINKED;
         }
 
-        private void ScreenHeld2()
+        /// <summary>
+        /// Hooks the player to the nearest node.
+        /// </summary>
+        private void Hook(TimeSpan elapsed)
+        {
+            //regionOfHooking = Rectangle.Empty;
+            player.hookState = Player.HookState.HOOKED;
+            //clockwise = GetIsClockwise();
+            //r = nearestNode.DistanceFromPlayer(player);
+            player.initCircular(nearestNode.GlobalCenter, elapsed);
+        }
+
+        /// <summary>
+        /// Unlinks the player.
+        /// </summary>
+        private void UnLink(TimeSpan elapsed)
+        {
+            player.unLink(elapsed);
+        }
+
+        /// <summary>
+        /// Gets the nearest node.
+        /// </summary>
+        /// <returns></returns>
+        private Node GetNearestNode()
+        {
+            return nodes[0]; /*
+            if (nodes.Count > 1)
+            {
+                Node n = nodes[0];
+                float distance = n.DistanceFromPlayer(player);
+                for (int i = 1; i < nodes.Count; i++)
+                {
+                    if (nodes[i].DistanceFromPlayer(player) < distance)
+                    {
+                        n = nodes[i];
+                        distance = n.DistanceFromPlayer(player);
+                    }
+                }
+                return n;
+            }
+            else if (nodes.Count == 1)
+                return nodes[0];
+            else return null;*/
+        }
+
+        Node nearestNode = null;
+                
+        /*
+        bool clockwise;
+        float r;
+        
+
+        //Rectangle regionOfHooking = Rectangle.Empty;
+
+        bool isAtPoints = false;
+        TimeSpan startRotate;
+
+        private void Rotate()
         {
             // 2) Calculate radius, start calculating initial velocity
             // 3) Continuously calculate velocity
-            SetPlayerVelocity(nearestNode, isClockwise);
+            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
+            if(Math.Abs(d.X) < buffer)
+            {
+                if (!isAtPoints)
+                {
+                    player.GlobalCenter = nearestNode.GlobalCenter + new Vector2(0, ((d.Y > 0) ? r : -r));
+                    isAtPoints = true;
+                }
+            }
+            else if (Math.Abs(d.Y) < buffer)
+            {
+                if (!isAtPoints)
+                {
+                    player.GlobalCenter = nearestNode.GlobalCenter + new Vector2(((d.X > 0) ? r : -r), 0);
+                    isAtPoints = true;
+                }
+            }
+            else
+            {
+                isAtPoints = false;
+            }
+            SetPlayerVelocity(nearestNode);
         }
 
         private void ScreenReleased()
         {
-            player.isCircling = false;
+            player.hookState = Player.HookState.NOT_LINKED;
         }
 
         /// <summary>
@@ -205,7 +307,7 @@ namespace OneMoreLineWP
         /// <returns></returns>
         private Vector2 CalculatePointOfHooking(Vector2 n)
         {
-            Vector2 p = player.Center;
+            Vector2 p = player.GlobalCenter;
             float x = 0, y = 0;
             if (player.velocity.X != 0 && player.velocity.Y != 0)
             {
@@ -224,82 +326,120 @@ namespace OneMoreLineWP
             return new Vector2(x, y);
         }
 
-        private void SetPlayerVelocity(Node n, bool isClockwise)
+        /// <summary>
+        /// Calculates the velocity of the player around the given node.
+        /// </summary>
+        /// <param name="n">the node to rotate around</param>
+        /// <param name="isClockwise">whether the player is going clockwise or not</param>
+        private void SetPlayerVelocity(Node n)
         {
-            float distance = n.DistanceFromPlayer(player);
-            Vector2 d = player.Center - n.Center;
-            Vector2 newVelocity = new Vector2(Math.Abs(d.Y / distance), Math.Abs(d.X / distance));
-            if (isClockwise)
+            if (player.hookState == Player.HookState.HOOKED)
             {
-                #region Clockwise
-                if (d.X > 0)
+                Vector2 d = player.GlobalCenter - n.GlobalCenter;
+                Vector2 newVelocity = new Vector2(Math.Abs(d.Y / r), Math.Abs(d.X / r));
+                if (clockwise)
                 {
-                    if (d.Y > 0)
-                        // player in I
-                        newVelocity.Y *= -1;
-                    else
-                    {    // player in IV
-                        newVelocity.X *= -1;
-                        newVelocity.Y *= -1;
+                    #region Clockwise
+                    if (d.X > 0)
+                    {
+                        if (d.Y > 0)
+                            // player in I
+                            newVelocity.Y *= -1;
+                        else
+                        {    // player in IV
+                            newVelocity.X *= -1;
+                            newVelocity.Y *= -1;
+                        }
                     }
-                }
-                else if(d.Y < 0)
-                {
-                    // player in III
-                    newVelocity.X *= -1;
-                }
-                #endregion
-            }
-            else
-            {
-                #region Counter Clockwise
-                if (d.X > 0)
-                {
-                    if (d.Y > 0)
-                        // player in I
+                    else if (d.Y < 0)
+                    {
+                        // player in III
                         newVelocity.X *= -1;
-                    // player in IV, do nothing
-                }
-                else if (d.Y > 0)
-                {
-                    // player in II
-                    newVelocity.X *= -1;
-                    newVelocity.Y *= -1;
+                    }
+                    #endregion
                 }
                 else
                 {
-                    // player in III
-                    newVelocity.Y *= -1;
+                    #region Counter Clockwise
+                    if (d.X > 0)
+                    {
+                        if (d.Y > 0)
+                            // player in I
+                            newVelocity.X *= -1;
+                        // player in IV, do nothing
+                    }
+                    else if (d.Y > 0)
+                    {
+                        // player in II
+                        newVelocity.X *= -1;
+                        newVelocity.Y *= -1;
+                    }
+                    else
+                    {
+                        // player in III
+                        newVelocity.Y *= -1;
+                    }
+                    #endregion
                 }
-                #endregion
+                player.velocity = newVelocity;
             }
-            player.velocity = newVelocity;
         }
 
         /// <summary>
-        /// Gets the nearest node.
+        /// Sees if the rotation is clockwise or not
         /// </summary>
         /// <returns></returns>
-        private Node GetNearestNode()
+        private bool GetIsClockwise()
         {
-            if (nodes.Count > 1)
-            {
-                Node n = nodes[0];
-                float distance = n.DistanceFromPlayer(player);
-                for (int i = 1; i < nodes.Count; i++)
-                {
-                    if (nodes[i].DistanceFromPlayer(player) < distance)
-                    {
-                        n = nodes[i];
-                        distance = n.DistanceFromPlayer(player);
-                    }
-                }
-                return n;
+            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
+            if (Math.Abs(d.X) <= buffer) {
+                if (player.velocity.X > 0)
+                    return d.Y > 0;
+                else
+                    return d.Y < 0;
             }
-            else if (nodes.Count == 1)
-                return nodes[0];
-            else return null;
+            else if (Math.Abs(d.Y) <= buffer)
+            {
+                if (player.velocity.Y > 0)
+                    return d.X < 0;
+                else
+                    return d.X > 0;
+            }
+            else if (d.X > 0)
+            {
+                if (d.Y > 0)
+                    return player.velocity.X > 0;
+                else
+                    return player.velocity.X < 0;
+            }
+            else
+            {
+                if (d.Y > 0)
+                    return player.velocity.X > 0;
+                else
+                    return player.velocity.X < 0;
+            }
         }
+
+        private void Start(TimeSpan initial)
+        {
+            // Set Initial Angle
+            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
+            r = d.Length();
+            initialAngle = (float)Math.Atan2((double)d.Y, (double)d.X);
+            initialTime = initial;
+        }
+
+        private void Rotate(TimeSpan elapsed)
+        {
+            // Elapsed time
+            float speed = 1/10000f;
+            float t = (float)((elapsed - initialTime).TotalMilliseconds);
+            float x = nearestNode.GlobalCenter.X + r * (float)Math.Cos(speed*t + initialAngle);
+            float y = nearestNode.GlobalCenter.Y + r * (float)Math.Sin(speed*t + initialAngle);
+            player.GlobalCenter = new Vector2(x, y);
+        }
+        */
 
         /// <summary>
         /// Checks to see if the player has crossed the boundary.
@@ -309,6 +449,9 @@ namespace OneMoreLineWP
         {
             return player.GlobalPosition.X < LEFT_BOUNDARY || player.GlobalRectangle.Right > RIGHT_BOUNDARY;
         }
+
+        float initialAngle;
+        TimeSpan initialTime;
 
         /// <summary>
         /// This is called when the game should draw itself.
@@ -327,19 +470,24 @@ namespace OneMoreLineWP
                 foreach (Node n in nodes)
                     n.Draw(spriteBatch);
 
+                // Boundaries
                 Primitives2D.DrawLine(spriteBatch, new Vector2(LEFT_BOUNDARY, 0), new Vector2(LEFT_BOUNDARY, VIEWPORT_HEIGHT), Color.White, 5f);
                 Primitives2D.DrawLine(spriteBatch, new Vector2(RIGHT_BOUNDARY, 0), new Vector2(RIGHT_BOUNDARY, VIEWPORT_HEIGHT), Color.White, 5f);
 
-                if (player.isCircling)
+                // HookState-specific drawing
+                switch (player.hookState)
                 {
-                    Primitives2D.DrawCircle(spriteBatch, nearestNode.Position.X + nearestNode.Texture.Width/2,
-                        nearestNode.Position.Y + nearestNode.Texture.Height/2,
-                        nearestNode.DistanceFromPlayer(player), 360, Color.White);
-                }
-
-                if(prehooked)
-                {
-                    Primitives2D.DrawRectangle(spriteBatch, regionOfHooking, Color.White);
+                    case Player.HookState.LINKED:
+                        Primitives2D.DrawLine(spriteBatch, player.Center, nearestNode.Center, Color.White, 2f);
+                        break;
+                    case Player.HookState.HOOKED:
+                        Primitives2D.DrawCircle(spriteBatch, nearestNode.Position.X + nearestNode.Texture.Width / 2,
+                            nearestNode.Position.Y + nearestNode.Texture.Height / 2,
+                            nearestNode.DistanceFromPlayer(player), 360, Color.White);
+                        Primitives2D.DrawLine(spriteBatch, player.Center, nearestNode.Center, Color.White, 2f);
+                        break;
+                    case Player.HookState.NOT_LINKED:
+                        break;
                 }
             }
             DrawText();
@@ -352,8 +500,7 @@ namespace OneMoreLineWP
         private void DrawText()
         {
             string str = "Player: " + player.ToString();
-            str += "\nPOH: " + regionOfHooking;
-
+            
             spriteBatch.DrawString(font, str, Vector2.Zero, Color.White);
         }
     }

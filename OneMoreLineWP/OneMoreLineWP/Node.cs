@@ -17,7 +17,7 @@ namespace OneMoreLineWP
 
         public float DistanceFromPlayer(Player p)
         {
-            return Vector2.Distance(p.Center, Center);
+            return Vector2.Distance(p.GlobalCenter, GlobalCenter);
         }
     }
 }

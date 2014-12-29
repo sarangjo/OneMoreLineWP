@@ -58,11 +58,29 @@ namespace OneMoreLineWP
             }
         }
 
-        public Vector2 Center
+        /// <summary>
+        /// Gets the coordinates of this Sprite's center on the global axes.
+        /// </summary>
+        public Vector2 GlobalCenter
         {
             get
             {
                 return new Vector2(GlobalRectangle.Center.X, GlobalRectangle.Center.Y);
+            }
+            set
+            {
+                GlobalPosition = value - new Vector2(Texture.Width / 2, Texture.Height / 2);
+            }
+        }
+
+        /// <summary>
+        /// Gets the coordinates of this Sprite's center on the screen's axes.
+        /// </summary>
+        public Vector2 Center
+        {
+            get
+            {
+                return Position + new Vector2(Texture.Width / 2, Texture.Height / 2);
             }
         }
     }
