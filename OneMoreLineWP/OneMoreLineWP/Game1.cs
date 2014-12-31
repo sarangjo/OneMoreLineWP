@@ -22,21 +22,23 @@ namespace OneMoreLineWP
         public static int LEFT_BOUNDARY;
         public static int RIGHT_BOUNDARY;
 
+        public static int viewFrameY;
+
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
 
         Player player;
         List<Node> nodes;
+        Node nearestNode = null;
 
         SpriteFont font;
 
-        float viewFrameY;
         bool coll = false;
 
         public Game1()
         {
             graphics = new GraphicsDeviceManager(this);
-            Content.RootDirectory = "Content";    
+            Content.RootDirectory = "Content";
         }
 
         /// <summary>
@@ -49,19 +51,24 @@ namespace OneMoreLineWP
         {
             VIEWPORT_HEIGHT = GraphicsDevice.Viewport.TitleSafeArea.Height;
             VIEWPORT_WIDTH = GraphicsDevice.Viewport.TitleSafeArea.Width;
-            LEFT_BOUNDARY = VIEWPORT_WIDTH / 6;
-            RIGHT_BOUNDARY = VIEWPORT_WIDTH * 5 / 6;
+            LEFT_BOUNDARY = VIEWPORT_WIDTH / 8;
+            RIGHT_BOUNDARY = VIEWPORT_WIDTH * 7 / 8;
             // Objects
             player = new Player(new Vector2(VIEWPORT_WIDTH/2, 0f));
-            nodes = new List<Node>();
-            nodes.Add(new Node(new Vector2(30, 360)));
-            nodes.Add(new Node(new Vector2(560, 860)));
+            InitNodes();
             viewFrameY = VIEWPORT_HEIGHT;
 
-            nearestNode = GetNearestNode();
+            //nearestNode = GetNearestNode();
             player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
 
             base.Initialize();
+        }
+
+        private void InitNodes() 
+        {
+            nodes = new List<Node>();
+            nodes.Add(new Node(new Vector2(330, 360)));
+            nodes.Add(new Node(new Vector2(460, 860)));
         }
 
         /// <summary>
@@ -105,7 +112,7 @@ namespace OneMoreLineWP
                 //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
 
                 // Object updates
-                player.Update(viewFrameY, gameTime.TotalGameTime);
+                player.Update(gameTime.TotalGameTime);
                 foreach (Node n in nodes)
                     n.Update(viewFrameY);
 
@@ -142,15 +149,18 @@ namespace OneMoreLineWP
 
                 // Check collisions
                 // 1 - nodes
-                /*
+                
                 foreach (Node n in nodes)
                     if (player.isCollided(n))
                     {
                         player.isAlive = false;
                     }
                 // 2 - boundaries
-                if (isCollidedWithBoundaries())
-                    player.isAlive = false;*/
+                if (isOutsideBoundaries())
+                    player.isAlive = false;
+
+                if (player.isAlive)
+                    state = GameState.GAMEOVER;
             }
 
             base.Update(gameTime);
@@ -191,8 +201,9 @@ namespace OneMoreLineWP
         {
             //Rectangle recOfHooking = new Rectangle((int)regionOfHooking.X - buffer, (int)regionOfHooking.Y - buffer, buffer * 2, buffer * 2);
             //return recOfHooking.Contains(player.Center);
-            float dot = Vector2.Dot(player.LinearUnitVelocity, player.GlobalCenter - nearestNode.GlobalCenter);
-            return Math.Abs(dot) < BUFFER;
+            float dot = nearestNode.GetDot(player);
+            //return Math.Abs(dot) < BUFFER;
+            return dot > - BUFFER;
         }
 
         /// <summary>
@@ -206,7 +217,96 @@ namespace OneMoreLineWP
             // 1) Find nearest node
             nearestNode = GetNearestNode();
 
-            player.hookState = Player.HookState.LINKED;
+            if(nearestNode != null)
+                player.hookState = Player.HookState.LINKED;
+        }
+
+        /// <summary>
+        /// Gets the nearest node.
+        /// </summary>
+        /// <returns></returns>
+        private Node GetNearestNode()
+        {
+            // Get all nodes with dot < 0 and distance < MAX_DISTANCE
+            List<Node> possibleNodes = new List<Node>();
+            foreach (Node n in nodes)
+                if (n.IsValid(player) && IsPointOfHookingInBoundaries(n))
+                    possibleNodes.Add(n);
+
+            if (possibleNodes.Count != 0)
+                return selectNodeInFront(possibleNodes);
+            else
+                return selectNearestNode();
+        }
+
+        /// <summary>
+        /// Checks whether the point of hooking of the given node.
+        /// </summary>
+        private bool IsPointOfHookingInBoundaries(Node n)
+        {
+            Vector2 poh = n.GetPointOfHooking(player);
+            return !(poh.X > RIGHT_BOUNDARY ||
+                 poh.X < LEFT_BOUNDARY);
+        }
+
+        /// <summary>
+        /// Selects a node in front of the player.
+        /// </summary>
+        private Node selectNodeInFront(List<Node> possibleNodes)
+        {
+            Node node = null;
+            // Get nearest of these
+            if (possibleNodes.Count >= 1)
+            {
+                node = possibleNodes[0];
+                float distance = node.DistanceFromPlayer(player);
+                for (int i = 1; i < possibleNodes.Count; i++)
+                {
+                    if (possibleNodes[i].DistanceFromPlayer(player) < distance)
+                    {
+                        node = possibleNodes[i];
+                        distance = node.DistanceFromPlayer(player);
+                    }
+                }
+            }
+            // TODO: See if this has a valid point of hooking
+            return node;
+        }
+
+        /// <summary>
+        /// Selects the nearest node, regardless of whether it's in front of or behind the player.
+        /// </summary>
+        private Node selectNearestNode()
+        {
+            Node node = null;
+            // First, gets the node that is nearest to the player, and within the max distance.
+            if (nodes.Count > 1)
+            {
+                Node n = nodes[0];
+                float distance = n.DistanceFromPlayer(player);
+                for (int i = 1; i < nodes.Count; i++)
+                {
+                    if (nodes[i].DistanceFromPlayer(player) < distance)
+                    {
+                        n = nodes[i];
+                        distance = n.DistanceFromPlayer(player);
+                    }
+                }
+                if (distance < Player.MAX_DISTANCE)
+                    node = n;
+            }
+            else if (nodes.Count == 1
+                && nodes[0].DistanceFromPlayer(player) < Player.MAX_DISTANCE)
+                node = nodes[0];
+
+            // Second, confirms that this can be hooked onto legally
+            if (node != null)
+            {
+                if (!IsPointOfHookingInBoundaries(node))
+                    node = null;
+            }
+
+            return node;
         }
 
         /// <summary>
@@ -228,34 +328,6 @@ namespace OneMoreLineWP
         {
             player.unLink(elapsed);
         }
-
-        /// <summary>
-        /// Gets the nearest node.
-        /// </summary>
-        /// <returns></returns>
-        private Node GetNearestNode()
-        {
-            return nodes[0]; /*
-            if (nodes.Count > 1)
-            {
-                Node n = nodes[0];
-                float distance = n.DistanceFromPlayer(player);
-                for (int i = 1; i < nodes.Count; i++)
-                {
-                    if (nodes[i].DistanceFromPlayer(player) < distance)
-                    {
-                        n = nodes[i];
-                        distance = n.DistanceFromPlayer(player);
-                    }
-                }
-                return n;
-            }
-            else if (nodes.Count == 1)
-                return nodes[0];
-            else return null;*/
-        }
-
-        Node nearestNode = null;
                 
         /*
         bool clockwise;
@@ -445,13 +517,14 @@ namespace OneMoreLineWP
         /// Checks to see if the player has crossed the boundary.
         /// </summary>
         /// <returns></returns>
-        private bool isCollidedWithBoundaries()
+        private bool isOutsideBoundaries()
         {
-            return player.GlobalPosition.X < LEFT_BOUNDARY || player.GlobalRectangle.Right > RIGHT_BOUNDARY;
+            return player.GlobalRectangle.Right < LEFT_BOUNDARY
+                || player.GlobalPosition.X > RIGHT_BOUNDARY;
         }
 
-        float initialAngle;
-        TimeSpan initialTime;
+        //float initialAngle;
+        //TimeSpan initialTime;
 
         /// <summary>
         /// This is called when the game should draw itself.
@@ -499,7 +572,7 @@ namespace OneMoreLineWP
 
         private void DrawText()
         {
-            string str = "Player: " + player.ToString();
+            string str = "Dot: " + ((nearestNode != null) ? ("" + nearestNode.GetDot(player)) : "Node null.");
             
             spriteBatch.DrawString(font, str, Vector2.Zero, Color.White);
         }

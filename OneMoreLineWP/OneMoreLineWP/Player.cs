@@ -22,16 +22,18 @@ namespace OneMoreLineWP
         //public Vector2 velocity;
         public bool isAlive;
         public HookState hookState;
+
+        public List<Vector2> playerTail;
         
         public Player(Vector2 newGPosition)
             : base("Graphics\\player", newGPosition)
         {
             isAlive = true;
             hookState = HookState.NOT_LINKED;
-            Speed = 1 / 10f;
+            playerTail = new List<Vector2>();
         }
 
-        public void Update(float viewFrameY, TimeSpan total)
+        public void Update(TimeSpan total)
         {
             // Apply Velocity
             //GlobalPosition.X += velocity.X * BASE_SPEED;
@@ -43,11 +45,14 @@ namespace OneMoreLineWP
                 updateLinear(total);
 
             Position.X = GlobalPosition.X;
+
+            playerTail.Add(GlobalCenter);
+
             // Update for view frame
-            base.Update(viewFrameY);
+            base.Update(Game1.viewFrameY);
         }
 
-        public float Speed { get; set; }
+        public float SPEED = 1/5f;
         private TimeSpan initTime;
 
         private Vector2 linearStart;
@@ -64,7 +69,7 @@ namespace OneMoreLineWP
         public void updateLinear(TimeSpan totalTime)
         {
             float t = (float)((totalTime - initTime).TotalMilliseconds);
-            GlobalPosition = linearStart + LinearUnitVelocity * Speed * t;
+            GlobalPosition = linearStart + LinearUnitVelocity * SPEED * t;
         }
 
         private Vector2 circularCenter;
@@ -121,12 +126,13 @@ namespace OneMoreLineWP
         }
 
         float t;
+        public static readonly float MAX_DISTANCE = 800f;
 
         public void updateCircular(TimeSpan totalTime)
         {
             t = (float)((totalTime - initTime).TotalMilliseconds);
-            float x = circularCenter.X + circularRadius * (float)Math.Cos(isClockwise * Speed / circularRadius * t + initialAngle);
-            float y = circularCenter.Y + circularRadius * (float)Math.Sin(isClockwise * Speed / circularRadius * t + initialAngle);
+            float x = circularCenter.X + circularRadius * (float)Math.Cos(isClockwise * SPEED / circularRadius * t + initialAngle);
+            float y = circularCenter.Y + circularRadius * (float)Math.Sin(isClockwise * SPEED / circularRadius * t + initialAngle);
             GlobalCenter = new Vector2(x, y);
         }
 
@@ -149,9 +155,26 @@ namespace OneMoreLineWP
         {
             hookState = HookState.NOT_LINKED;
 
-            float x = -(float)Math.Sin(isClockwise * Speed / circularRadius * t + initialAngle) * isClockwise;
-            float y = (float)Math.Cos(isClockwise * Speed / circularRadius * t + initialAngle) * isClockwise;
+            float x = -(float)Math.Sin(isClockwise * SPEED / circularRadius * t + initialAngle) * isClockwise;
+            float y = (float)Math.Cos(isClockwise * SPEED / circularRadius * t + initialAngle) * isClockwise;
             initLinear(new Vector2(x, y), total);
+        }
+
+        public void Draw(SpriteBatch spriteBatch)
+        {
+            base.Draw(spriteBatch);
+            List<Vector2> playerTailDraw = GetPlayerDrawTail();
+            Primitives2D.DrawPoints(spriteBatch, Vector2.Zero, playerTailDraw, Color.White, 2f);
+        }
+
+        private List<Vector2> GetPlayerDrawTail()
+        {
+            List<Vector2> drawTail = new List<Vector2>();
+            foreach (Vector2 v in playerTail)
+            {
+                drawTail.Add(new Vector2(v.X, Game1.viewFrameY - v.Y));
+            }
+            return drawTail;
         }
 
         /// <summary>
