@@ -31,6 +31,9 @@ namespace OneMoreLineWP
             return Vector2.Dot(player.LinearUnitVelocity, player.GlobalCenter - GlobalCenter);
         }
 
+        /// <summary>
+        /// Given a player, gets the point where the player would hook onto this node.
+        /// </summary>
         public Vector2 GetPointOfHooking(Player player)
         {
             Vector2 n = GlobalCenter;

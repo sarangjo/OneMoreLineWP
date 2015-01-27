@@ -18,10 +18,15 @@ namespace OneMoreLineWP
         public static readonly Vector2 BASE_VELOCITY = new Vector2(0, 1);
         public static readonly Vector2 BASE_POSITION = new Vector2(0, 10f);
         public static readonly float BASE_SPEED = 8f;
+        public static float BUFFER_DISTANCE = 50f;
+        public static float MAX_DISTANCE = 400f;
+        public float SPEED = 1 / 5f;
+        private TimeSpan initTime;
 
         //public Vector2 velocity;
         public bool isAlive;
         public HookState hookState;
+        private float t;
 
         public List<Vector2> playerTail;
         
@@ -52,9 +57,7 @@ namespace OneMoreLineWP
             base.Update(Game1.viewFrameY);
         }
 
-        public float SPEED = 1/5f;
-        private TimeSpan initTime;
-
+        #region Linear Movement
         private Vector2 linearStart;
         public Vector2 LinearUnitVelocity { get; set; }
 
@@ -71,9 +74,11 @@ namespace OneMoreLineWP
             float t = (float)((totalTime - initTime).TotalMilliseconds);
             GlobalPosition = linearStart + LinearUnitVelocity * SPEED * t;
         }
+        #endregion
 
+        #region Circular Movement
         private Vector2 circularCenter;
-        private float circularRadius;
+        public float circularRadius;
         private float initialAngle;
         private int isClockwise;
 
@@ -125,9 +130,10 @@ namespace OneMoreLineWP
             }
         }
 
-        float t;
-        public static readonly float MAX_DISTANCE = 800f;
-
+        /// <summary>
+        /// Updates this Player's position in circular motion.
+        /// </summary>
+        /// <param name="totalTime"></param>
         public void updateCircular(TimeSpan totalTime)
         {
             t = (float)((totalTime - initTime).TotalMilliseconds);
@@ -135,6 +141,7 @@ namespace OneMoreLineWP
             float y = circularCenter.Y + circularRadius * (float)Math.Sin(isClockwise * SPEED / circularRadius * t + initialAngle);
             GlobalCenter = new Vector2(x, y);
         }
+        #endregion
 
         /// <summary>
         /// Checks to see if the given node is colliding with this Player.
