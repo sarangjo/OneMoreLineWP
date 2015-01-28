@@ -16,11 +16,9 @@ namespace OneMoreLineWP
         }
 
         public static readonly Vector2 BASE_VELOCITY = new Vector2(0, 1);
-        public static readonly Vector2 BASE_POSITION = new Vector2(0, 10f);
-        public static readonly float BASE_SPEED = 8f;
         public static float BUFFER_DISTANCE = 50f;
         public static float MAX_DISTANCE = 400f;
-        public float SPEED = 1 / 5f;
+        public float SPEED = 1 / 4f;
         private TimeSpan initTime;
 
         //public Vector2 velocity;
@@ -49,12 +47,10 @@ namespace OneMoreLineWP
             else
                 updateLinear(total);
 
-            Position.X = GlobalPosition.X;
-
             playerTail.Add(GlobalCenter);
 
             // Update for view frame
-            base.Update(Game1.viewFrameY);
+            base.Update(Game1.viewFrame);
         }
 
         #region Linear Movement
@@ -82,6 +78,11 @@ namespace OneMoreLineWP
         private float initialAngle;
         private int isClockwise;
 
+        /// <summary>
+        /// Sets up the circular motion.
+        /// </summary>
+        /// <param name="center">the global center of the node</param>
+        /// <param name="initial">the initial time</param>
         public void initCircular(Vector2 center, TimeSpan initial)
         {
             circularCenter = center;
@@ -167,6 +168,10 @@ namespace OneMoreLineWP
             initLinear(new Vector2(x, y), total);
         }
 
+        /// <summary>
+        /// Draws the player.
+        /// </summary>
+        /// <param name="spriteBatch">the current spritebatch</param>
         public void Draw(SpriteBatch spriteBatch)
         {
             base.Draw(spriteBatch);
@@ -179,7 +184,8 @@ namespace OneMoreLineWP
             List<Vector2> drawTail = new List<Vector2>();
             foreach (Vector2 v in playerTail)
             {
-                drawTail.Add(new Vector2(v.X, Game1.viewFrameY - v.Y));
+                drawTail.Add(new Vector2(v.X - Game1.viewFrame.X, Game1.VIEWPORT_HEIGHT - (v.Y - Game1.viewFrame.Y)));
+                //new Vector2(v.X, Game1.viewFrame.Y - v.Y));
             }
             return drawTail;
         }

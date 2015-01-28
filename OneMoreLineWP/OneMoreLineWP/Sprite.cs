@@ -22,7 +22,6 @@ namespace OneMoreLineWP
             Color = Color.White;
             GlobalPosition = newGlobalPosition;
             Position = Vector2.Zero;
-            Position.X = GlobalPosition.X;
         }
 
         public void LoadContent(ContentManager manager)
@@ -30,9 +29,10 @@ namespace OneMoreLineWP
             Texture = manager.Load<Texture2D>(Asset);
         }
 
-        public void Update(float viewFrameY)
+        public void Update(Vector2 viewFrame)
         {
-            Position.Y = viewFrameY - GlobalPosition.Y - Texture.Height;
+            Position.X = (GlobalPosition.X - viewFrame.X);
+            Position.Y = Game1.VIEWPORT_HEIGHT - (GlobalPosition.Y - viewFrame.Y + Texture.Height);
         }
 
         public void Draw(SpriteBatch spriteBatch)
