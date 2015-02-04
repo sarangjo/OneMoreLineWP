@@ -5,6 +5,9 @@ using Microsoft.Xna.Framework.Input.Touch;
 using System;
 using System.Collections.Generic;
 
+///
+/// Inspired by Sidd Gorti
+///
 namespace OneMoreLineWP
 {
     /// <summary>
@@ -14,14 +17,15 @@ namespace OneMoreLineWP
     {
         public enum GameState
         {
-            PLAYING, GAMEOVER
+            MENU, PLAYING, GAMEOVER
         }
-        GameState state = GameState.PLAYING;
-
+        GameState state = GameState.MENU;
+        
+        public static readonly int BUFFER = 10;
         public static int VIEWPORT_HEIGHT;
         public static int VIEWPORT_WIDTH;
-        //public static int LEFT_BOUNDARY;
-        //public static int RIGHT_BOUNDARY;
+        public static int LEFT_BOUNDARY;
+        public static int RIGHT_BOUNDARY;
 
         public static Vector2 viewFrame;
         //public static int viewFrameY;
@@ -52,12 +56,14 @@ namespace OneMoreLineWP
             // Set up viewport details
             VIEWPORT_HEIGHT = GraphicsDevice.Viewport.TitleSafeArea.Height;
             VIEWPORT_WIDTH = GraphicsDevice.Viewport.TitleSafeArea.Width;
+            LEFT_BOUNDARY = 0;
+            RIGHT_BOUNDARY = VIEWPORT_WIDTH;
             int x = 10;
             
             // Objects
             player = new Player(new Vector2(VIEWPORT_WIDTH/2, 50f));
             InitNodes();
-            viewFrame = new Vector2(0, 0);// player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 50f);
+            viewFrame = new Vector2(50, 0);// player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 50f);
             
             //nearestNode = GetNearestNode();
             player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
@@ -71,8 +77,9 @@ namespace OneMoreLineWP
         private void InitNodes() 
         {
             nodes = new List<Node>();
-            nodes.Add(new Node(new Vector2(170, 360)));
-            nodes.Add(new Node(new Vector2(510, 860)));
+            nodes.Add(new Node(new Vector2(0, 660), 1f));
+            nodes.Add(new Node(new Vector2(510, 860), 0.5f));
+            nodes.Add(new Node(new Vector2(60, 1360), 6f));
         }
 
         /// <summary>
@@ -91,14 +98,10 @@ namespace OneMoreLineWP
             font = Content.Load<SpriteFont>("MyFont");
         }
 
-        /// <summary>
-        /// UnloadContent will be called once per game and is the place to unload
-        /// all content.
-        /// </summary>
-        protected override void UnloadContent()
-        {
-            // TODO: Unload any non ContentManager content here
-        }
+        TimeSpan pastPlayTime = TimeSpan.Zero;
+        TimeSpan currentPlayTime;
+        TimeSpan totalPlayTime;
+        TimeSpan currentPlayTimeStart;
 
         /// <summary>
         /// Allows the game to run logic such as updating the world,
@@ -108,28 +111,30 @@ namespace OneMoreLineWP
         protected override void Update(GameTime gameTime)
         {
             // TODO: Add your update logic here
-            if (state == GameState.PLAYING)
+            switch (state)
             {
-                // Update ViewFrame
-                //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
-                viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 50f);
+                case GameState.PLAYING:
+                    // Time
+                    currentPlayTime = gameTime.TotalGameTime - currentPlayTimeStart;
+                    totalPlayTime = pastPlayTime + currentPlayTime;
 
-                // Object updates
-                player.Update(gameTime.TotalGameTime);
-                foreach (Node n in nodes)
-                    n.Update(viewFrame);
+                    // Update ViewFrame
+                    //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
+                    viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 100f);
 
-                // User input
-                ProcessInput(gameTime.TotalGameTime);
+                    // Object updates
+                    player.Update(totalPlayTime);
+                    foreach (Node n in nodes)
+                        n.Update(viewFrame);
 
-                if (player.hookState == Player.HookState.LINKED)
-                {
-                    if (IsAtPointOfHooking())
-                        Hook(gameTime.TotalGameTime);
-                }
+                    if (player.hookState == Player.HookState.LINKED)
+                    {
+                        if (IsAtPointOfHooking())
+                            Hook();
+                    }
 
-                #region old
-                /*if (!isStarted)
+                    #region old
+                    /*if (!isStarted)
                 {
                     isStarted = true;
                     Start(gameTime.ElapsedGameTime);
@@ -140,36 +145,44 @@ namespace OneMoreLineWP
                     Rotate(gameTime.TotalGameTime);
                 }*/
 
-                /*switch (player.hookState)
-                {
-                    case Player.HookState.LINKED:
-                        if (IsAtPointOfHooking())
-                            Hook();
-                        break;
-                    case Player.HookState.HOOKED:
-                        Rotate(gameTime.ElapsedGameTime);
-                        break;
-                }*/
-                #endregion
-
-                // Check collisions
-                // 1 - nodes
-                
-                foreach (Node n in nodes)
-                    if (player.isCollided(n))
+                    /*switch (player.hookState)
                     {
-                        player.isAlive = false;
-                    }
-                // 2 - boundaries
-                if (isOutsideBoundaries() && player.hookState == Player.HookState.NOT_LINKED)
-                    player.isAlive = false;
+                        case Player.HookState.LINKED:
+                            if (IsAtPointOfHooking())
+                                Hook();
+                            break;
+                        case Player.HookState.HOOKED:
+                            Rotate(gameTime.ElapsedGameTime);
+                            break;
+                    }*/
+                    #endregion
 
-                if (!player.isAlive)
-                    state = GameState.GAMEOVER;
+                    // Check collisions
+                    // 1 - nodes
+
+                    foreach (Node n in nodes)
+                        if (player.isCollided(n))
+                        {
+                            player.isAlive = false;
+                        }
+                    // 2 - boundaries
+                    if (isOutsideBoundaries() && player.hookState == Player.HookState.NOT_LINKED)
+                        player.isAlive = false;
+
+                    if (!player.isAlive)
+                        EndGame();
+
+                    if (BackPressed())
+                        state = GameState.MENU;
+                    break;
+                case GameState.GAMEOVER:
+                case GameState.MENU:
+                    if (BackPressed())
+                        Exit();
+                    break;
             }
 
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
-                Exit();
+            ProcessInput(gameTime);
 
             base.Update(gameTime);
         }
@@ -177,30 +190,54 @@ namespace OneMoreLineWP
         /// <summary>
         /// Processes touch input.
         /// </summary>
-        private void ProcessInput(TimeSpan elapsed)
+        private void ProcessInput(GameTime gameTime)
         {
-            // Process touch events
             TouchCollection touchCollection = TouchPanel.GetState();
             if (touchCollection.Count > 0)
             {
                 TouchLocation tl = touchCollection[0];
                 if (tl.State == TouchLocationState.Released)
                 {
-                    switch (player.hookState)
+                    switch (state)
                     {
-                        case Player.HookState.NOT_LINKED:
-                            Link();
+                        case GameState.PLAYING:
+                            // Process touch events
+                            switch (player.hookState)
+                            {
+                                case Player.HookState.NOT_LINKED:
+                                    Link();
+                                    break;
+                                case Player.HookState.HOOKED:
+                                    UnLink();
+                                    break;
+                            }
                             break;
-                        case Player.HookState.HOOKED:
-                            UnLink(elapsed);
+                        case GameState.GAMEOVER:
+                            break;
+                        case GameState.MENU:
+                            state = GameState.PLAYING;
+                            currentPlayTimeStart = gameTime.TotalGameTime;
                             break;
                     }
                 }
             }
         }
-        
-        public static readonly int BUFFER = 10;
-        
+
+        private void EndGame()
+        {
+            pastPlayTime = totalPlayTime;
+            currentPlayTime = TimeSpan.Zero;
+            state = GameState.GAMEOVER;
+        }
+
+        /// <summary>
+        /// Checks if the back button is pressed.
+        /// </summary>
+        private bool BackPressed()
+        {
+            return GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed;
+        }
+     
         /// <summary>
         /// Checks if the player is at the point of hooking.
         /// </summary>
@@ -212,37 +249,6 @@ namespace OneMoreLineWP
             float dot = nearestNode.GetDot(player);
             //return Math.Abs(dot) < BUFFER;
             return dot > - BUFFER;
-        }
-
-        /// <summary>
-        /// Links the player to the nearest node.
-        /// </summary>
-        private void Link()
-        {
-            //Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
-            //regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
-
-            // 1) Check if it's linking back to the same node
-            if (nearestNode != null)
-            {
-                float newRadius = nearestNode.DistanceFromPlayer(player);
-                if (newRadius - player.circularRadius < Player.BUFFER_DISTANCE)
-                {
-                    player.hookState = Player.HookState.LINKED;
-                }
-                else
-                {
-                    // 2) Find nearest node
-                    nearestNode = GetNearestNode();
-                }
-            }
-            else
-            {
-                // 2) Find nearest node
-                nearestNode = GetNearestNode();
-            }
-            if (nearestNode != null)
-                player.hookState = Player.HookState.LINKED;
         }
 
         /// <summary>
@@ -312,6 +318,7 @@ namespace OneMoreLineWP
                 {
                     if (nodes[i].DistanceFromPlayer(player) < distance)
                     {
+                        // This is the new minimum
                         n = nodes[i];
                         distance = n.DistanceFromPlayer(player);
                     }
@@ -334,23 +341,54 @@ namespace OneMoreLineWP
         }
 
         /// <summary>
+        /// Links the player to the nearest node.
+        /// </summary>
+        private void Link()
+        {
+            //Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
+            //regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
+
+            // 1) Check if it's linking back to the same node
+            if (nearestNode != null)
+            {
+                float newRadius = nearestNode.DistanceFromPlayer(player);
+                if (newRadius - player.circularRadius < Player.BUFFER_DISTANCE)
+                {
+                    player.hookState = Player.HookState.LINKED;
+                }
+                else
+                {
+                    // 2) Find nearest node
+                    nearestNode = GetNearestNode();
+                }
+            }
+            else
+            {
+                // 2) Find nearest node
+                nearestNode = GetNearestNode();
+            }
+            if (nearestNode != null)
+                player.hookState = Player.HookState.LINKED;
+        }
+
+        /// <summary>
         /// Hooks the player to the nearest node.
         /// </summary>
-        private void Hook(TimeSpan elapsed)
+        private void Hook()
         {
             //regionOfHooking = Rectangle.Empty;
             player.hookState = Player.HookState.HOOKED;
             //clockwise = GetIsClockwise();
             //r = nearestNode.DistanceFromPlayer(player);
-            player.initCircular(nearestNode.GlobalCenter, elapsed);
+            player.initCircular(nearestNode.GlobalCenter, totalPlayTime);
         }
 
         /// <summary>
         /// Unlinks the player.
         /// </summary>
-        private void UnLink(TimeSpan elapsed)
+        private void UnLink()
         {
-            player.unLink(elapsed);
+            player.unLink(totalPlayTime);
         }
                 
         /*
@@ -543,8 +581,8 @@ namespace OneMoreLineWP
         /// <returns></returns>
         private bool isOutsideBoundaries()
         {
-            return player.GlobalRectangle.Right < 0
-                || player.GlobalPosition.X > VIEWPORT_WIDTH;
+            return player.GlobalRectangle.Right < LEFT_BOUNDARY
+                || player.GlobalPosition.X > RIGHT_BOUNDARY;
         }
 
         //float initialAngle;
@@ -560,6 +598,8 @@ namespace OneMoreLineWP
 
             spriteBatch.Begin();
 
+            DrawState(spriteBatch);
+
             if (state == GameState.PLAYING)
             {
                 // Objects
@@ -568,22 +608,19 @@ namespace OneMoreLineWP
                     n.Draw(spriteBatch);
 
                 // Boundaries
-                Primitives2D.DrawLine(spriteBatch, new Vector2(0 - viewFrame.X, 0), new Vector2(0 - viewFrame.X, VIEWPORT_HEIGHT), Color.White, 5f);
-                Primitives2D.DrawLine(spriteBatch, new Vector2(VIEWPORT_WIDTH - viewFrame.X, 0), new Vector2(VIEWPORT_WIDTH - viewFrame.X, VIEWPORT_HEIGHT), Color.White, 5f);
+                Primitives2D.DrawLine(spriteBatch, new Vector2(LEFT_BOUNDARY - viewFrame.X, 0), new Vector2(LEFT_BOUNDARY - viewFrame.X, VIEWPORT_HEIGHT), Color.White, 5f);
+                Primitives2D.DrawLine(spriteBatch, new Vector2(RIGHT_BOUNDARY - viewFrame.X, 0), new Vector2(RIGHT_BOUNDARY - viewFrame.X, VIEWPORT_HEIGHT), Color.White, 5f);
 
                 // HookState-specific drawing
                 switch (player.hookState)
                 {
-                    case Player.HookState.LINKED:
-                        Primitives2D.DrawLine(spriteBatch, player.Center, nearestNode.Center, Color.White, 2f);
-                        break;
                     case Player.HookState.HOOKED:
-                        Primitives2D.DrawCircle(spriteBatch, nearestNode.Position.X + nearestNode.Texture.Width / 2,
-                            nearestNode.Position.Y + nearestNode.Texture.Height / 2,
+                        Primitives2D.DrawCircle(spriteBatch, nearestNode.Center,
                             nearestNode.DistanceFromPlayer(player), 360, Color.White);
                         Primitives2D.DrawLine(spriteBatch, player.Center, nearestNode.Center, Color.White, 2f);
                         break;
-                    case Player.HookState.NOT_LINKED:
+                    case Player.HookState.LINKED:
+                        Primitives2D.DrawLine(spriteBatch, player.Center, nearestNode.Center, Color.White, 2f);
                         break;
                 }
             }
@@ -596,6 +633,15 @@ namespace OneMoreLineWP
         }
 
         /// <summary>
+        /// Draws the current state of the game.
+        /// </summary>
+        /// <param name="spriteBatch"></param>
+        private void DrawState(SpriteBatch spriteBatch)
+        {
+            spriteBatch.DrawString(font, "State: " + state, Vector2.Zero, Color.White);
+        }
+
+        /// <summary>
         /// Draws all the debug text.
         /// </summary>
         private void DrawDebugText()
@@ -604,8 +650,9 @@ namespace OneMoreLineWP
             str += "Player Global: " + player.GlobalPosition;
             str += "\nPlayer Position: " + player.Position;
             str += "\nViewframe: " + viewFrame;
+            str += "\nPlay time: " + totalPlayTime;
             
-            spriteBatch.DrawString(font, str, Vector2.Zero, Color.White);
+            spriteBatch.DrawString(font, str, new Vector2(0, 20), Color.White);
         }
     }
 }

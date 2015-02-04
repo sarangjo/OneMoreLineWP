@@ -9,11 +9,22 @@ namespace OneMoreLineWP
 {
     public class Node : Sprite
     {
-        public Node(Vector2 newPosition)
-            : base("Graphics\\node", newPosition)
+        public static readonly float BASE_SIZE = 50f;
+
+        /// <summary>
+        /// Creates a new Node with the given global center.
+        /// </summary>
+        /// <param name="newGlobalCenter">the global center</param>
+        /// <param name="newSize">the size of the node</param>
+        public Node(Vector2 newGlobalCenter, float newSize)
+            : base("Graphics\\node", newGlobalCenter - new Vector2(newSize * BASE_SIZE * 0.5f, newSize * BASE_SIZE * 0.5f), newSize)
         {
 
         }
+
+        public Node(float x, float y, float newSize)
+            : this(new Vector2(x, y), newSize)
+        { }
 
         /// <summary>
         /// Gets the distance from this node to the player.;

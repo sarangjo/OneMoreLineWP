@@ -29,7 +29,7 @@ namespace OneMoreLineWP
         public List<Vector2> playerTail;
         
         public Player(Vector2 newGPosition)
-            : base("Graphics\\player", newGPosition)
+            : base("Graphics\\player", newGPosition, 1f)
         {
             isAlive = true;
             hookState = HookState.NOT_LINKED;
