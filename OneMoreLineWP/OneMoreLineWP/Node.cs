@@ -39,7 +39,7 @@ namespace OneMoreLineWP
         /// </summary>
         public float GetDot(Player player)
         {
-            return Vector2.Dot(player.LinearUnitVelocity, player.GlobalCenter - GlobalCenter);
+            return Vector2.Dot(player.LinearGlobalUnitVelocity, player.GlobalCenter - GlobalCenter);
         }
 
         /// <summary>
@@ -50,16 +50,16 @@ namespace OneMoreLineWP
             Vector2 n = GlobalCenter;
             Vector2 p = player.GlobalCenter;
             float x = 0, y = 0;
-            if (player.LinearUnitVelocity.Y == 0 || player.LinearUnitVelocity.X == 0)
+            if (player.LinearGlobalUnitVelocity.Y == 0 || player.LinearGlobalUnitVelocity.X == 0)
             {
                 // Special Cases
-                if (player.LinearUnitVelocity.Y == 0)
+                if (player.LinearGlobalUnitVelocity.Y == 0)
                 { x = n.X; y = p.Y; }
                 else { x = p.X; y = n.Y; }
             }
             else
             {
-                float m = player.LinearUnitVelocity.Y / player.LinearUnitVelocity.X;
+                float m = player.LinearGlobalUnitVelocity.Y / player.LinearGlobalUnitVelocity.X;
                 x = (n.X / m + m * p.X + n.Y - p.Y) / (m + 1 / m);
                 y = m * (x - p.X) + p.Y;
             }

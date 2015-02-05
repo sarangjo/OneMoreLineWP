@@ -22,14 +22,15 @@ namespace OneMoreLineWP
         GameState state = GameState.MENU;
         
         public static readonly int BUFFER = 10;
+        public static readonly float VIEWFRAME_OFFSET = 200f;
+
         public static int VIEWPORT_HEIGHT;
         public static int VIEWPORT_WIDTH;
         public static int LEFT_BOUNDARY;
         public static int RIGHT_BOUNDARY;
 
         public static Vector2 viewFrame;
-        //public static int viewFrameY;
-
+        
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
 
@@ -58,14 +59,13 @@ namespace OneMoreLineWP
             VIEWPORT_WIDTH = GraphicsDevice.Viewport.TitleSafeArea.Width;
             LEFT_BOUNDARY = 0;
             RIGHT_BOUNDARY = VIEWPORT_WIDTH;
-            int x = 10;
-            
+            viewFrame = new Vector2(50f, 0);
+
             // Objects
             player = new Player(new Vector2(VIEWPORT_WIDTH/2, 50f));
             InitNodes();
-            viewFrame = new Vector2(50, 0);// player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 50f);
             
-            //nearestNode = GetNearestNode();
+            // Setup motion
             player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
 
             base.Initialize();
@@ -92,16 +92,18 @@ namespace OneMoreLineWP
             spriteBatch = new SpriteBatch(GraphicsDevice);
 
             // TODO: use this.Content to load your game content here
-            player.LoadContent(this.Content);
+            player.LoadContent(Content);
             foreach (Node n in nodes)
-                n.LoadContent(this.Content);
+                n.LoadContent(Content);
             font = Content.Load<SpriteFont>("MyFont");
         }
 
+        #region TimeSpans
         TimeSpan pastPlayTime = TimeSpan.Zero;
         TimeSpan currentPlayTime;
         TimeSpan totalPlayTime;
         TimeSpan currentPlayTimeStart;
+        #endregion
 
         /// <summary>
         /// Allows the game to run logic such as updating the world,
@@ -114,19 +116,19 @@ namespace OneMoreLineWP
             switch (state)
             {
                 case GameState.PLAYING:
-                    // Time
+                    // Update time
                     currentPlayTime = gameTime.TotalGameTime - currentPlayTimeStart;
                     totalPlayTime = pastPlayTime + currentPlayTime;
 
                     // Update ViewFrame
-                    //viewFrameY += player.Velocity.Y * Player.BASE_SPEED;
-                    viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, 100f);
+                    viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, VIEWFRAME_OFFSET);
 
                     // Object updates
                     player.Update(totalPlayTime);
                     foreach (Node n in nodes)
                         n.Update(viewFrame);
 
+                    // Moving from LINKED to HOOKED
                     if (player.hookState == Player.HookState.LINKED)
                     {
                         if (IsAtPointOfHooking())
@@ -159,7 +161,6 @@ namespace OneMoreLineWP
 
                     // Check collisions
                     // 1 - nodes
-
                     foreach (Node n in nodes)
                         if (player.isCollided(n))
                         {
@@ -201,7 +202,6 @@ namespace OneMoreLineWP
                     switch (state)
                     {
                         case GameState.PLAYING:
-                            // Process touch events
                             switch (player.hookState)
                             {
                                 case Player.HookState.NOT_LINKED:
@@ -223,6 +223,9 @@ namespace OneMoreLineWP
             }
         }
 
+        /// <summary>
+        /// Ends the game.
+        /// </summary>
         private void EndGame()
         {
             pastPlayTime = totalPlayTime;
@@ -340,6 +343,7 @@ namespace OneMoreLineWP
             return node;
         }
 
+        #region Player-Node interaction
         /// <summary>
         /// Links the player to the nearest node.
         /// </summary>
@@ -390,191 +394,8 @@ namespace OneMoreLineWP
         {
             player.unLink(totalPlayTime);
         }
-                
-        /*
-        bool clockwise;
-        float r;
+        #endregion
         
-
-        //Rectangle regionOfHooking = Rectangle.Empty;
-
-        bool isAtPoints = false;
-        TimeSpan startRotate;
-
-        private void Rotate()
-        {
-            // 2) Calculate radius, start calculating initial velocity
-            // 3) Continuously calculate velocity
-            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
-            if(Math.Abs(d.X) < buffer)
-            {
-                if (!isAtPoints)
-                {
-                    player.GlobalCenter = nearestNode.GlobalCenter + new Vector2(0, ((d.Y > 0) ? r : -r));
-                    isAtPoints = true;
-                }
-            }
-            else if (Math.Abs(d.Y) < buffer)
-            {
-                if (!isAtPoints)
-                {
-                    player.GlobalCenter = nearestNode.GlobalCenter + new Vector2(((d.X > 0) ? r : -r), 0);
-                    isAtPoints = true;
-                }
-            }
-            else
-            {
-                isAtPoints = false;
-            }
-            SetPlayerVelocity(nearestNode);
-        }
-
-        private void ScreenReleased()
-        {
-            player.hookState = Player.HookState.NOT_LINKED;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="n">the center of the node</param>
-        /// <returns></returns>
-        private Vector2 CalculatePointOfHooking(Vector2 n)
-        {
-            Vector2 p = player.GlobalCenter;
-            float x = 0, y = 0;
-            if (player.velocity.X != 0 && player.velocity.Y != 0)
-            {
-                // General Case
-                float m = player.velocity.Y / player.velocity.X;
-                x = (n.X / m + m * p.X + n.Y - p.Y) / (m + 1 / m);
-                y = m * (x - p.X) + p.Y;
-            }
-            else
-            {
-                // Special Cases
-                if (player.velocity.Y == 0)
-                { x = n.X; y = p.Y; }
-                else { x = p.X; y = n.Y; }
-            }
-            return new Vector2(x, y);
-        }
-
-        /// <summary>
-        /// Calculates the velocity of the player around the given node.
-        /// </summary>
-        /// <param name="n">the node to rotate around</param>
-        /// <param name="isClockwise">whether the player is going clockwise or not</param>
-        private void SetPlayerVelocity(Node n)
-        {
-            if (player.hookState == Player.HookState.HOOKED)
-            {
-                Vector2 d = player.GlobalCenter - n.GlobalCenter;
-                Vector2 newVelocity = new Vector2(Math.Abs(d.Y / r), Math.Abs(d.X / r));
-                if (clockwise)
-                {
-                    #region Clockwise
-                    if (d.X > 0)
-                    {
-                        if (d.Y > 0)
-                            // player in I
-                            newVelocity.Y *= -1;
-                        else
-                        {    // player in IV
-                            newVelocity.X *= -1;
-                            newVelocity.Y *= -1;
-                        }
-                    }
-                    else if (d.Y < 0)
-                    {
-                        // player in III
-                        newVelocity.X *= -1;
-                    }
-                    #endregion
-                }
-                else
-                {
-                    #region Counter Clockwise
-                    if (d.X > 0)
-                    {
-                        if (d.Y > 0)
-                            // player in I
-                            newVelocity.X *= -1;
-                        // player in IV, do nothing
-                    }
-                    else if (d.Y > 0)
-                    {
-                        // player in II
-                        newVelocity.X *= -1;
-                        newVelocity.Y *= -1;
-                    }
-                    else
-                    {
-                        // player in III
-                        newVelocity.Y *= -1;
-                    }
-                    #endregion
-                }
-                player.velocity = newVelocity;
-            }
-        }
-
-        /// <summary>
-        /// Sees if the rotation is clockwise or not
-        /// </summary>
-        /// <returns></returns>
-        private bool GetIsClockwise()
-        {
-            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
-            if (Math.Abs(d.X) <= buffer) {
-                if (player.velocity.X > 0)
-                    return d.Y > 0;
-                else
-                    return d.Y < 0;
-            }
-            else if (Math.Abs(d.Y) <= buffer)
-            {
-                if (player.velocity.Y > 0)
-                    return d.X < 0;
-                else
-                    return d.X > 0;
-            }
-            else if (d.X > 0)
-            {
-                if (d.Y > 0)
-                    return player.velocity.X > 0;
-                else
-                    return player.velocity.X < 0;
-            }
-            else
-            {
-                if (d.Y > 0)
-                    return player.velocity.X > 0;
-                else
-                    return player.velocity.X < 0;
-            }
-        }
-
-        private void Start(TimeSpan initial)
-        {
-            // Set Initial Angle
-            Vector2 d = player.GlobalCenter - nearestNode.GlobalCenter;
-            r = d.Length();
-            initialAngle = (float)Math.Atan2((double)d.Y, (double)d.X);
-            initialTime = initial;
-        }
-
-        private void Rotate(TimeSpan elapsed)
-        {
-            // Elapsed time
-            float speed = 1/10000f;
-            float t = (float)((elapsed - initialTime).TotalMilliseconds);
-            float x = nearestNode.GlobalCenter.X + r * (float)Math.Cos(speed*t + initialAngle);
-            float y = nearestNode.GlobalCenter.Y + r * (float)Math.Sin(speed*t + initialAngle);
-            player.GlobalCenter = new Vector2(x, y);
-        }
-        */
-
         /// <summary>
         /// Checks to see if the player has crossed the boundary.
         /// </summary>

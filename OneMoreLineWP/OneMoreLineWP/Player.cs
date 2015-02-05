@@ -55,20 +55,20 @@ namespace OneMoreLineWP
 
         #region Linear Movement
         private Vector2 linearStart;
-        public Vector2 LinearUnitVelocity { get; set; }
+        public Vector2 LinearGlobalUnitVelocity { get; set; }
 
         public void initLinear(Vector2 vel, TimeSpan initial)
         {
             linearStart = GlobalPosition;
-            LinearUnitVelocity = vel;
-            LinearUnitVelocity.Normalize();
+            LinearGlobalUnitVelocity = vel;
+            LinearGlobalUnitVelocity.Normalize();
             initTime = initial;
         }
 
         public void updateLinear(TimeSpan totalTime)
         {
             float t = (float)((totalTime - initTime).TotalMilliseconds);
-            GlobalPosition = linearStart + LinearUnitVelocity * SPEED * t;
+            GlobalPosition = linearStart + LinearGlobalUnitVelocity * SPEED * t;
         }
         #endregion
 
@@ -91,7 +91,7 @@ namespace OneMoreLineWP
             // Set Initial Angle, Time, and clockwise
             initialAngle = (float)Math.Atan2((double)d.Y, (double)d.X);
             initTime = initial;
-            isClockwise = (GetIsClockwise() ? -1 : 1);
+            isClockwise = (GetIsClockwise2() ? -1 : 1);
         }
 
         /// <summary>
@@ -103,14 +103,14 @@ namespace OneMoreLineWP
             Vector2 d = GlobalCenter - circularCenter;
             if (Math.Abs(d.X) <= Game1.BUFFER)
             {
-                if (LinearUnitVelocity.X > 0)
+                if (LinearGlobalUnitVelocity.X > 0)
                     return d.Y > 0;
                 else
                     return d.Y < 0;
             }
             else if (Math.Abs(d.Y) <= Game1.BUFFER)
             {
-                if (LinearUnitVelocity.Y > 0)
+                if (LinearGlobalUnitVelocity.Y > 0)
                     return d.X < 0;
                 else
                     return d.X > 0;
@@ -118,18 +118,39 @@ namespace OneMoreLineWP
             else if (d.X > 0)
             {
                 if (d.Y > 0)
-                    return LinearUnitVelocity.X > 0;
+                    return LinearGlobalUnitVelocity.X > 0;
                 else
-                    return LinearUnitVelocity.X < 0;
+                    return LinearGlobalUnitVelocity.X < 0;
             }
             else
             {
                 if (d.Y > 0)
-                    return LinearUnitVelocity.X > 0;
+                    return LinearGlobalUnitVelocity.X > 0;
                 else
-                    return LinearUnitVelocity.X < 0;
+                    return LinearGlobalUnitVelocity.X < 0;
             }
         }
+
+        private bool GetIsClockwise2()
+        {
+            // Radius of the circle around which to rotate the player's velocity vector
+            float fauxCircleRadius = Vector2.Distance(circularCenter, GlobalCenter);
+            // Angles of adjustment
+            // Theta is how much the velocity vector centered at the node needs to be adjusted
+            float theta = -(float)Math.Atan2((double)LinearGlobalUnitVelocity.Y, (double)LinearGlobalUnitVelocity.X);
+            // Phi is the current coordinate of the player in the circle centered at the node: (phi, fauxCircleRadius)
+            float phi = (float)Math.Atan2((GlobalCenter-circularCenter).Y, (GlobalCenter-circularCenter).X);
+            // The new adjusted position of the player
+            Vector2 s = circularCenter + new Vector2(fauxCircleRadius * (float)Math.Cos(phi + theta), fauxCircleRadius * (float)Math.Sin(phi + theta));
+
+            if (s.Y - circularCenter.Y <= 0)
+                // "to the right of the node"
+                return false;
+            else
+                // "to the left of the node"
+                return true;
+        }
+
 
         /// <summary>
         /// Updates this Player's position in circular motion.
