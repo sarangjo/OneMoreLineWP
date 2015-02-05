@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace OneMoreLineWP
 {
-    public class Node : Sprite
+    public class Node : CircularSprite
     {
         public static readonly float BASE_SIZE = 50f;
 
@@ -17,7 +17,7 @@ namespace OneMoreLineWP
         /// <param name="newGlobalCenter">the global center</param>
         /// <param name="newSize">the size of the node</param>
         public Node(Vector2 newGlobalCenter, float newSize)
-            : base("Graphics\\node", newGlobalCenter - new Vector2(newSize * BASE_SIZE * 0.5f, newSize * BASE_SIZE * 0.5f), newSize)
+            : base("Graphics\\node", newGlobalCenter, newSize)
         {
 
         }

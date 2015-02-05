@@ -16,14 +16,14 @@ namespace OneMoreLineWP
         public Vector2 Position;
         public Color Color;
         public Vector2 GlobalPosition;
-        public float Size;
+        public float Scale;
 
-        public Sprite(String newAsset, Vector2 newGlobalPosition, float newSize) {
+        public Sprite(String newAsset, Vector2 newGlobalPosition, float newScale) {
             Asset = newAsset;
             Color = Color.White;
             GlobalPosition = newGlobalPosition;
             Position = Vector2.Zero;
-            Size = newSize;
+            Scale = newScale;
         }
 
         public void LoadContent(ContentManager manager)
@@ -38,7 +38,7 @@ namespace OneMoreLineWP
         public void Update(Vector2 viewFrame)
         {
             Position.X = (GlobalPosition.X - viewFrame.X);
-            Position.Y = Game1.VIEWPORT_HEIGHT - (GlobalPosition.Y - viewFrame.Y + Texture.Height * Size);
+            Position.Y = Game1.VIEWPORT_HEIGHT - (GlobalPosition.Y - viewFrame.Y + Texture.Height * Scale);
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace OneMoreLineWP
         /// <param name="spriteBatch">the SpriteBatch</param>
         public void Draw(SpriteBatch spriteBatch)
         {
-            spriteBatch.Draw(Texture, Position, null, Color, 0f, Vector2.Zero, Size, SpriteEffects.None, 0f);
+            spriteBatch.Draw(Texture, Position, null, Color, 0f, Vector2.Zero, Scale, SpriteEffects.None, 0f);
         }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace OneMoreLineWP
                 try
                 {
                     return new Rectangle((int)(GlobalPosition.X + 0.5), (int)(GlobalPosition.Y + 0.5),
-                        (int)(Texture.Width * Size + 0.5), (int)(Texture.Height * Size + 0.5));
+                        (int)(Texture.Width * Scale + 0.5), (int)(Texture.Height * Scale + 0.5));
                 }
                 catch (Exception e)
                 {
@@ -80,7 +80,7 @@ namespace OneMoreLineWP
             }
             set
             {
-                GlobalPosition = value - new Vector2(Size * (Texture.Width / 2), Size * (Texture.Height / 2));
+                GlobalPosition = value - new Vector2(Scale * (Texture.Width / 2), Scale * (Texture.Height / 2));
             }
         }
 
@@ -91,7 +91,7 @@ namespace OneMoreLineWP
         {
             get
             {
-                return Position + new Vector2(Size * Texture.Width / 2, Size * Texture.Height / 2);
+                return Position + new Vector2(Scale * Texture.Width / 2, Scale * Texture.Height / 2);
             }
         }
     }

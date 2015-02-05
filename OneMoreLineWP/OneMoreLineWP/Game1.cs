@@ -59,15 +59,8 @@ namespace OneMoreLineWP
             VIEWPORT_WIDTH = GraphicsDevice.Viewport.TitleSafeArea.Width;
             LEFT_BOUNDARY = 0;
             RIGHT_BOUNDARY = VIEWPORT_WIDTH;
-            viewFrame = new Vector2(50f, 0);
 
-            // Objects
-            player = new Player(new Vector2(VIEWPORT_WIDTH/2, 50f));
-            InitNodes();
-            
-            // Setup motion
-            player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
-
+            StartGame();
             base.Initialize();
         }
 
@@ -162,10 +155,9 @@ namespace OneMoreLineWP
                     // Check collisions
                     // 1 - nodes
                     foreach (Node n in nodes)
-                        if (player.isCollided(n))
-                        {
+                        if (player.IsCircularColliding(n))
                             player.isAlive = false;
-                        }
+
                     // 2 - boundaries
                     if (isOutsideBoundaries() && player.hookState == Player.HookState.NOT_LINKED)
                         player.isAlive = false;
@@ -224,6 +216,21 @@ namespace OneMoreLineWP
         }
 
         /// <summary>
+        /// Sets up the playfield for the start of the game.
+        /// </summary>
+        private void StartGame()
+        {
+            viewFrame = new Vector2(50f, 0);
+
+            // Objects
+            player = new Player(new Vector2(VIEWPORT_WIDTH / 2, 50f));
+            InitNodes();
+
+            // Setup motion
+            player.initLinear(Player.BASE_VELOCITY, new TimeSpan(0));
+        }
+
+        /// <summary>
         /// Ends the game.
         /// </summary>
         private void EndGame()
@@ -263,7 +270,7 @@ namespace OneMoreLineWP
             // 2) Get all nodes with dot < 0 and distance < MAX_DISTANCE and hooking in boundaries
             List<Node> possibleNodes = new List<Node>();
             foreach (Node n in nodes)
-                if (n.IsValid(player) && IsPointOfHookingInBoundaries(n))
+                if (n.IsValid(player) /*&& IsPointOfHookingInBoundaries(n)*/)
                     possibleNodes.Add(n);
 
             if (possibleNodes.Count != 0)
@@ -312,7 +319,8 @@ namespace OneMoreLineWP
         private Node selectNearestNode()
         {
             Node node = null;
-            // First, gets the node that is nearest to the player, and within the max distance.
+            // First, gets the node that is nearest to the player, and within 
+            // the max distance.
             if (nodes.Count > 1)
             {
                 Node n = nodes[0];
@@ -329,16 +337,16 @@ namespace OneMoreLineWP
                 if (distance < Player.MAX_DISTANCE)
                     node = n;
             }
-            else if (nodes.Count == 1
-                && nodes[0].DistanceFromPlayer(player) < Player.MAX_DISTANCE)
+            else if (nodes.Count == 1 &&
+                nodes[0].DistanceFromPlayer(player) < Player.MAX_DISTANCE)
                 node = nodes[0];
 
             // Second, confirms that this can be hooked onto legally
-            if (node != null)
+            /*if (node != null)
             {
                 if (!IsPointOfHookingInBoundaries(node))
                     node = null;
-            }
+            }*/
 
             return node;
         }

@@ -8,7 +8,7 @@ using Microsoft.Xna.Framework;
 
 namespace OneMoreLineWP
 {
-    public class Player : Sprite
+    public class Player : CircularSprite
     {
         public enum HookState
         {
@@ -91,14 +91,14 @@ namespace OneMoreLineWP
             // Set Initial Angle, Time, and clockwise
             initialAngle = (float)Math.Atan2((double)d.Y, (double)d.X);
             initTime = initial;
-            isClockwise = (GetIsClockwise2() ? -1 : 1);
+            isClockwise = (GetIsClockwise() ? -1 : 1);
         }
 
         /// <summary>
         /// Sees if the rotation is clockwise or not
         /// </summary>
         /// <returns></returns>
-        private bool GetIsClockwise()
+        private bool GetIsClockwiseOld()
         {
             Vector2 d = GlobalCenter - circularCenter;
             if (Math.Abs(d.X) <= Game1.BUFFER)
@@ -131,7 +131,11 @@ namespace OneMoreLineWP
             }
         }
 
-        private bool GetIsClockwise2()
+        /// <summary>
+        /// Gets whether the rotation in the circular motion is clockwise.
+        /// </summary>
+        /// <returns></returns>
+        private bool GetIsClockwise()
         {
             // Radius of the circle around which to rotate the player's velocity vector
             float fauxCircleRadius = Vector2.Distance(circularCenter, GlobalCenter);
