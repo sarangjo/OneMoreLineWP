@@ -18,6 +18,12 @@ namespace OneMoreLineWP
         public Vector2 GlobalPosition;
         public float Scale;
 
+        /// <summary>
+        /// Constructs a new Sprite with the given details.
+        /// </summary>
+        /// <param name="newAsset">the asset filename</param>
+        /// <param name="newGlobalPosition">the global position</param>
+        /// <param name="newScale">the scale for the sprite</param>
         public Sprite(String newAsset, Vector2 newGlobalPosition, float newScale) {
             Asset = newAsset;
             Color = Color.White;
@@ -26,6 +32,10 @@ namespace OneMoreLineWP
             Scale = newScale;
         }
 
+        /// <summary>
+        /// Loads the given asset into a Texture.
+        /// </summary>
+        /// <param name="manager"></param>
         public void LoadContent(ContentManager manager)
         {
             Texture = manager.Load<Texture2D>(Asset);

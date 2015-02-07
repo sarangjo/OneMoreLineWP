@@ -1,4 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +12,8 @@ namespace OneMoreLineWP
     public class Node : CircularSprite
     {
         public static readonly float BASE_SIZE = 50f;
+        // Graphics\\node
+        public static Texture2D NODE_TEXTURE;
 
         /// <summary>
         /// Creates a new Node with the given global center.
@@ -17,14 +21,15 @@ namespace OneMoreLineWP
         /// <param name="newGlobalCenter">the global center</param>
         /// <param name="newSize">the size of the node</param>
         public Node(Vector2 newGlobalCenter, float newSize)
-            : base("Graphics\\node", newGlobalCenter, newSize)
+            : base("", newGlobalCenter, newSize)
         {
-
+            Texture = NODE_TEXTURE;
         }
 
         public Node(float x, float y, float newSize)
             : this(new Vector2(x, y), newSize)
-        { }
+        {
+        }
 
         /// <summary>
         /// Gets the distance from this node to the player.;
@@ -71,8 +76,13 @@ namespace OneMoreLineWP
         /// </summary>
         public bool IsValid(Player player)
         {
-            return (GetDot(player) < Game1.BUFFER) &&
+            return (GetDot(player) < Game1.GEN_BUFFER) &&
                 (DistanceFromPlayer(player) < Player.MAX_DISTANCE);
+        }
+
+        public static void LoadNodeTexture(ContentManager manager)
+        {
+            NODE_TEXTURE = manager.Load<Texture2D>("Graphics\\node");
         }
     }
 }

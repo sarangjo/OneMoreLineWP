@@ -21,13 +21,14 @@ namespace OneMoreLineWP
         }
         GameState state = GameState.MENU;
         
-        public static readonly int BUFFER = 10;
-        public static readonly float VIEWFRAME_OFFSET = 200f;
+        public static readonly int GEN_BUFFER = 10;
+        public static readonly float VIEWFRAME_OFFSET_FROM_PLAYER = 200f;
 
         public static int VIEWPORT_HEIGHT;
         public static int VIEWPORT_WIDTH;
         public static int LEFT_BOUNDARY;
         public static int RIGHT_BOUNDARY;
+        public static float L1, L2, R1, R2;
 
         public static Vector2 viewFrame;
         
@@ -60,35 +61,35 @@ namespace OneMoreLineWP
             LEFT_BOUNDARY = 0;
             RIGHT_BOUNDARY = VIEWPORT_WIDTH;
 
+            r = new Random();
+
             StartGame();
             base.Initialize();
         }
 
+        private static float ZONE1;
+        private static float ZONE2;
+
         /// <summary>
         /// Initializes the nodes.
         /// </summary>
-        private void InitNodes() 
+        private void InitNodes()
         {
             nodes = new List<Node>();
-            nodes.Add(new Node(new Vector2(0, 660), 1f));
+
+            // "Constants"
+            ZONE1 = VIEWPORT_HEIGHT + 250;
+            ZONE2 = VIEWPORT_HEIGHT * 2 + 600;
+            L1 = LEFT_BOUNDARY + 80;
+            L2 = (int)((RIGHT_BOUNDARY - LEFT_BOUNDARY) / 2 - ((player.Texture == null) ? Player.BASE_SIZE : player.Texture.Width) / 2 - GEN_BUFFER * 1.5);
+            R1 = (int)((RIGHT_BOUNDARY - LEFT_BOUNDARY) / 2 + ((player.Texture == null) ? Player.BASE_SIZE : player.Texture.Width) / 2 + GEN_BUFFER * 1.5);
+            R2 = RIGHT_BOUNDARY - 80;
+
+            addNextNodeAtY = ZONE1;
+            /*nodes.Add(new Node(new Vector2(0, 660), 1f));
             nodes.Add(new Node(new Vector2(510, 860), 0.5f));
             nodes.Add(new Node(new Vector2(60, 1360), 6f));
-        }
-
-        /// <summary>
-        /// LoadContent will be called once per game and is the place to load
-        /// all of your content.
-        /// </summary>
-        protected override void LoadContent()
-        {
-            // Create a new SpriteBatch, which can be used to draw textures.
-            spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            // TODO: use this.Content to load your game content here
-            player.LoadContent(Content);
-            foreach (Node n in nodes)
-                n.LoadContent(Content);
-            font = Content.Load<SpriteFont>("MyFont");
+            */
         }
 
         #region TimeSpans
@@ -114,7 +115,10 @@ namespace OneMoreLineWP
                     totalPlayTime = pastPlayTime + currentPlayTime;
 
                     // Update ViewFrame
-                    viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, VIEWFRAME_OFFSET);
+                    viewFrame = player.GlobalCenter - new Vector2(VIEWPORT_WIDTH / 2, VIEWFRAME_OFFSET_FROM_PLAYER);
+
+                    // Updates the nodes
+                    UpdateNodes();
 
                     // Object updates
                     player.Update(totalPlayTime);
@@ -215,6 +219,85 @@ namespace OneMoreLineWP
             }
         }
 
+        private float currentAddingNodesAtY;
+        private float addNextNodeAtY;
+
+        /// <summary>
+        /// Gets which zone nodes are being added at currently.
+        /// </summary>
+        /// <returns></returns>
+        private int getUpdateNodeZone()
+        {
+            if (currentAddingNodesAtY <= ZONE1)
+                return 0;
+            else if (currentAddingNodesAtY < ZONE2)
+                return 1;
+            else return 2;
+        }
+
+        Random r;
+
+        /// <summary>
+        /// Updates the nodes, adding new ones.
+        /// </summary>
+        private void UpdateNodes()
+        {
+            // The y value at which new nodes are being added
+            currentAddingNodesAtY = viewFrame.Y + VIEWPORT_HEIGHT;
+            if (Math.Abs(currentAddingNodesAtY - addNextNodeAtY) < GEN_BUFFER)
+            {
+                if(AddNode(getUpdateNodeZone()))
+                    UpdateAddNextNodeAtY();
+            }
+        }
+
+        public static float ADD_NEXT_NODE_LOWER = 200;
+        public static float ADD_NEXT_NODE_UPPER = 420;
+
+        /// <summary>
+        /// Updates where to add the next node.
+        /// </summary>
+        private void UpdateAddNextNodeAtY()
+        {
+            addNextNodeAtY += (float)(r.NextDouble() * (ADD_NEXT_NODE_UPPER - ADD_NEXT_NODE_LOWER) + ADD_NEXT_NODE_LOWER);
+        }
+
+        /// <summary>
+        /// Adds a new node, based on the current zone.
+        /// </summary>
+        /// <param name="zone"></param>
+        /// <returns>whether a new node was added or not</returns>
+        private bool AddNode(int zone)
+        {
+            if (zone > 0)
+            {
+                double d = r.NextDouble();
+                double x = 0;
+                switch (zone)
+                {
+                    case 1:
+                        // Zone 1 is where we don't want nodes in the direct path of the user
+                        if (d < 0.5)
+                            x = L1 + 2 * d * (L2 - L1);
+                        else
+                            x = R1 + 2 * (d - 0.5) * (R2 - R1);
+                        break;
+                    case 2:
+                        // Zone 2 is the general zone.
+                        x = L1 + d * (R2 - R1);
+                        break;
+                }
+                float scale = (float)(r.NextDouble() * (NODE_SCALE_UPPER - NODE_SCALE_LOWER) + NODE_SCALE_LOWER);
+                nodes.Add(new Node(new Vector2((float)x, addNextNodeAtY), scale));
+                return true;
+            }
+            return false;
+        }
+
+        public static double NODE_SCALE_LOWER = 0.5;
+        public static double NODE_SCALE_UPPER = 1.2;
+
+
         /// <summary>
         /// Sets up the playfield for the start of the game.
         /// </summary>
@@ -223,7 +306,7 @@ namespace OneMoreLineWP
             viewFrame = new Vector2(50f, 0);
 
             // Objects
-            player = new Player(new Vector2(VIEWPORT_WIDTH / 2, 50f));
+            player = new Player(new Vector2((VIEWPORT_WIDTH - Player.BASE_SIZE) / 2, 50f));
             InitNodes();
 
             // Setup motion
@@ -248,6 +331,38 @@ namespace OneMoreLineWP
             return GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed;
         }
      
+        #region Player-Node interaction
+        /// <summary>
+        /// Links the player to the nearest node.
+        /// </summary>
+        private void Link()
+        {
+            //Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
+            //regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
+
+            // 1) Check if it's linking back to the same node
+            if (nearestNode != null)
+            {
+                float newRadius = nearestNode.DistanceFromPlayer(player);
+                if (newRadius - player.circularRadius < Player.BUFFER_DISTANCE)
+                {
+                    player.hookState = Player.HookState.LINKED;
+                }
+                else
+                {
+                    // 2) Find nearest node
+                    nearestNode = GetNearestNode();
+                }
+            }
+            else
+            {
+                // 2) Find nearest node
+                nearestNode = GetNearestNode();
+            }
+            if (nearestNode != null)
+                player.hookState = Player.HookState.LINKED;
+        }
+
         /// <summary>
         /// Checks if the player is at the point of hooking.
         /// </summary>
@@ -258,7 +373,7 @@ namespace OneMoreLineWP
             //return recOfHooking.Contains(player.Center);
             float dot = nearestNode.GetDot(player);
             //return Math.Abs(dot) < BUFFER;
-            return dot > - BUFFER;
+            return dot > -GEN_BUFFER;
         }
 
         /// <summary>
@@ -351,38 +466,6 @@ namespace OneMoreLineWP
             return node;
         }
 
-        #region Player-Node interaction
-        /// <summary>
-        /// Links the player to the nearest node.
-        /// </summary>
-        private void Link()
-        {
-            //Vector2 pointOfHooking = CalculatePointOfHooking(nodes[1].Center);
-            //regionOfHooking = new Rectangle((int)pointOfHooking.X - buffer, (int)pointOfHooking.Y - buffer, buffer * 2, buffer * 2);
-
-            // 1) Check if it's linking back to the same node
-            if (nearestNode != null)
-            {
-                float newRadius = nearestNode.DistanceFromPlayer(player);
-                if (newRadius - player.circularRadius < Player.BUFFER_DISTANCE)
-                {
-                    player.hookState = Player.HookState.LINKED;
-                }
-                else
-                {
-                    // 2) Find nearest node
-                    nearestNode = GetNearestNode();
-                }
-            }
-            else
-            {
-                // 2) Find nearest node
-                nearestNode = GetNearestNode();
-            }
-            if (nearestNode != null)
-                player.hookState = Player.HookState.LINKED;
-        }
-
         /// <summary>
         /// Hooks the player to the nearest node.
         /// </summary>
@@ -414,9 +497,24 @@ namespace OneMoreLineWP
                 || player.GlobalPosition.X > RIGHT_BOUNDARY;
         }
 
-        //float initialAngle;
-        //TimeSpan initialTime;
+        /// <summary>
+        /// LoadContent will be called once per game and is the place to load
+        /// all of your content.
+        /// </summary>
+        protected override void LoadContent()
+        {
+            // Create a new SpriteBatch, which can be used to draw textures.
+            spriteBatch = new SpriteBatch(GraphicsDevice);
 
+            // TODO: use this.Content to load your game content here
+            player.LoadContent(Content);
+            Node.LoadNodeTexture(Content);
+            /*foreach (Node n in nodes)
+                n.LoadContent(Content);
+            */font = Content.Load<SpriteFont>("MyFont");
+        }
+
+        #region Drawing
         /// <summary>
         /// This is called when the game should draw itself.
         /// </summary>
@@ -483,5 +581,6 @@ namespace OneMoreLineWP
             
             spriteBatch.DrawString(font, str, new Vector2(0, 20), Color.White);
         }
+        #endregion
     }
 }

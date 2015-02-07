@@ -15,10 +15,11 @@ namespace OneMoreLineWP
             NOT_LINKED, LINKED, HOOKED
         }
 
+        public static readonly float BASE_SIZE = 40;
         public static readonly Vector2 BASE_VELOCITY = new Vector2(0, 1);
-        public static float BUFFER_DISTANCE = 50f;
+        public static float BUFFER_DISTANCE = 30f;
         public static float MAX_DISTANCE = 400f;
-        public float SPEED = 1 / 4f;
+        public float SPEED = 1 / 3f;
         private TimeSpan initTime;
 
         //public Vector2 velocity;
@@ -36,6 +37,10 @@ namespace OneMoreLineWP
             playerTail = new List<Vector2>();
         }
 
+        /// <summary>
+        /// Updates the player depending on the hook state.
+        /// </summary>
+        /// <param name="total">The total game time</param>
         public void Update(TimeSpan total)
         {
             // Apply Velocity
@@ -101,14 +106,14 @@ namespace OneMoreLineWP
         private bool GetIsClockwiseOld()
         {
             Vector2 d = GlobalCenter - circularCenter;
-            if (Math.Abs(d.X) <= Game1.BUFFER)
+            if (Math.Abs(d.X) <= Game1.GEN_BUFFER)
             {
                 if (LinearGlobalUnitVelocity.X > 0)
                     return d.Y > 0;
                 else
                     return d.Y < 0;
             }
-            else if (Math.Abs(d.Y) <= Game1.BUFFER)
+            else if (Math.Abs(d.Y) <= Game1.GEN_BUFFER)
             {
                 if (LinearGlobalUnitVelocity.Y > 0)
                     return d.X < 0;
@@ -187,7 +192,7 @@ namespace OneMoreLineWP
         public void unLink(TimeSpan total)
         {
             hookState = HookState.NOT_LINKED;
-
+            // Calculated using the derivative (s/o to Ms. Iliescu)
             float x = -(float)Math.Sin(isClockwise * SPEED / circularRadius * t + initialAngle) * isClockwise;
             float y = (float)Math.Cos(isClockwise * SPEED / circularRadius * t + initialAngle) * isClockwise;
             initLinear(new Vector2(x, y), total);
@@ -204,13 +209,16 @@ namespace OneMoreLineWP
             Primitives2D.DrawPoints(spriteBatch, Vector2.Zero, playerTailDraw, Color.White, 2f);
         }
 
+        /// <summary>
+        /// Converts the player tail to actual positions to be drawn on the screen.
+        /// </summary>
+        /// <returns></returns>
         private List<Vector2> GetPlayerDrawTail()
         {
             List<Vector2> drawTail = new List<Vector2>();
             foreach (Vector2 v in playerTail)
             {
                 drawTail.Add(new Vector2(v.X - Game1.viewFrame.X, Game1.VIEWPORT_HEIGHT - (v.Y - Game1.viewFrame.Y)));
-                //new Vector2(v.X, Game1.viewFrame.Y - v.Y));
             }
             return drawTail;
         }
