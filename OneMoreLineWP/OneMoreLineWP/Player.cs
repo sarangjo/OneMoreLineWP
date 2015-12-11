@@ -15,13 +15,15 @@ namespace OneMoreLineWP
             NOT_LINKED, LINKED, HOOKED
         }
 
+        #region Constants
         public static readonly float BASE_SIZE = 40;
         public static readonly Vector2 BASE_VELOCITY = new Vector2(0, 1);
         public static float BUFFER_DISTANCE = 30f;
         public static float MAX_DISTANCE = 400f;
-        public float SPEED = 1 / 3f;
-        private TimeSpan initTime;
+        public float SPEED = 0.49f;
+        #endregion
 
+        private TimeSpan initTime;
         //public Vector2 velocity;
         public bool isAlive;
         public HookState hookState;
@@ -55,7 +57,7 @@ namespace OneMoreLineWP
             playerTail.Add(GlobalCenter);
 
             // Update for view frame
-            base.Update(Game1.viewFrame);
+            base.Update(OMLGame.viewFrame);
         }
 
         #region Linear Movement
@@ -106,14 +108,14 @@ namespace OneMoreLineWP
         private bool GetIsClockwiseOld()
         {
             Vector2 d = GlobalCenter - circularCenter;
-            if (Math.Abs(d.X) <= Game1.GEN_BUFFER)
+            if (Math.Abs(d.X) <= OMLGame.GEN_BUFFER)
             {
                 if (LinearGlobalUnitVelocity.X > 0)
                     return d.Y > 0;
                 else
                     return d.Y < 0;
             }
-            else if (Math.Abs(d.Y) <= Game1.GEN_BUFFER)
+            else if (Math.Abs(d.Y) <= OMLGame.GEN_BUFFER)
             {
                 if (LinearGlobalUnitVelocity.Y > 0)
                     return d.X < 0;
@@ -218,7 +220,7 @@ namespace OneMoreLineWP
             List<Vector2> drawTail = new List<Vector2>();
             foreach (Vector2 v in playerTail)
             {
-                drawTail.Add(new Vector2(v.X - Game1.viewFrame.X, Game1.VIEWPORT_HEIGHT - (v.Y - Game1.viewFrame.Y)));
+                drawTail.Add(new Vector2(v.X - OMLGame.viewFrame.X, OMLGame.VIEWPORT_HEIGHT - (v.Y - OMLGame.viewFrame.Y)));
             }
             return drawTail;
         }

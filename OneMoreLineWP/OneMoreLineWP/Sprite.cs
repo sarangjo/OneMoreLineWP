@@ -48,7 +48,7 @@ namespace OneMoreLineWP
         public void Update(Vector2 viewFrame)
         {
             Position.X = (GlobalPosition.X - viewFrame.X);
-            Position.Y = Game1.VIEWPORT_HEIGHT - (GlobalPosition.Y - viewFrame.Y + Texture.Height * Scale);
+            Position.Y = OMLGame.VIEWPORT_HEIGHT - (GlobalPosition.Y - viewFrame.Y + Texture.Height * Scale);
         }
 
         /// <summary>

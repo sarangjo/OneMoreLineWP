@@ -12,7 +12,7 @@ namespace OneMoreLineWP
     public class Node : CircularSprite
     {
         public static readonly float BASE_SIZE = 50f;
-        // Graphics\\node
+        // Graphics\node
         public static Texture2D NODE_TEXTURE;
 
         /// <summary>
@@ -73,11 +73,40 @@ namespace OneMoreLineWP
 
         /// <summary>
         /// Gets if this node is a valid linkable node for the given player.
+        /// Distance, dot, non-colliding.
         /// </summary>
         public bool IsValid(Player player)
         {
-            return (GetDot(player) < Game1.GEN_BUFFER) &&
-                (DistanceFromPlayer(player) < Player.MAX_DISTANCE);
+            return (DistanceFromPlayer(player) < Player.MAX_DISTANCE)
+                && (GetDot(player) < OMLGame.GEN_BUFFER)
+                && (NonColliding(player));
+        }
+
+        /// <summary>
+        /// Checks if the player is colliding with this node.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        private bool NonColliding(Player player)
+        {
+            // Linear velocity
+            Vector2 d = (GlobalCenter - player.GlobalCenter);
+            d.Normalize();
+            Vector2 unitPerpendicular = new Vector2(-d.Y, d.X);
+            //float slopeFromAtoB = -d.X / d.Y;
+            Vector2 A = GlobalCenter + (Radius + player.Radius + OMLGame.GEN_BUFFER) * unitPerpendicular;
+            Vector2 B = GlobalCenter - (Radius + player.Radius + OMLGame.GEN_BUFFER) * unitPerpendicular;
+            float alpha = (float)Math.Atan2(A.Y - player.GlobalCenter.Y, A.X - player.GlobalCenter.X);
+            float beta = (float)Math.Atan2(B.Y - player.GlobalCenter.Y, B.X - player.GlobalCenter.X);
+            float playerAngle = (float)Math.Atan2(player.LinearGlobalUnitVelocity.Y, player.LinearGlobalUnitVelocity.X);
+            if (alpha > beta)
+            {
+                return (playerAngle >= beta && playerAngle <= alpha);
+            }
+            else
+            {
+                return (playerAngle >= alpha && playerAngle <= beta);
+            }
         }
 
         public static void LoadNodeTexture(ContentManager manager)
